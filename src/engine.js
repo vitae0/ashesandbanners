@@ -204,6 +204,11 @@ export function assetEffects(s,regionId){
   intel:fall("railway",2,5)+fall("press",.5,5)
  };
 }
+export function institutionRaidRisk(s,a){
+ const r=regionOf(s,a.region);
+ const factor=DIFFICULTIES[s.settings.difficulty].risk*CENT_LEVELS[s.centralization-1].exposure;
+ return clamp((.001+.000075*clamp(a.visibility)+.000035*r.heat)*factor,0,.9);
+}
 export function resolveOperation(s,o){
  const op=OPERATIONS.find(x=>x.id===o.type),c=s.cells.find(x=>x.id===o.cell);
  if(!op||!c||o.result)return;
@@ -341,7 +346,7 @@ function week(s){
  // Occupation authorities periodically uncover institutions. Visibility has real effects.
  for(const a of [...s.assets]){
   const r=regionOf(s,a.region);
-  const raidChance=(.001+.000075*a.visibility+.000035*r.heat)*diff.risk*CENT_LEVELS[s.centralization-1].exposure;
+  const raidChance=institutionRaidRisk(s,a);
   if(rand(s)<raidChance){
     a.raids=(a.raids||0)+1;r.heat=clamp(r.heat+5);s.alert=clamp(s.alert+3);
     for(const c of active.filter(c=>c.region===r.id))c.exposure=clamp(c.exposure+4);
