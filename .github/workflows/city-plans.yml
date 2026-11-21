@@ -1,0 +1,33 @@
+name: Bundle historic city plans
+on:
+  push:
+    branches: [main]
+    paths:
+      - scripts/fetch-city-plans.py
+      - .github/workflows/city-plans.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  bundle-city-scans:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Fetch verified, public-domain street plans
+        run: python scripts/fetch-city-plans.py
+      - name: Commit scanned town plans and source inventory
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/maps/city-*.jpg assets/maps/CITY-SOURCES.json
+          if ! git diff --cached --quiet; then
+            git commit -m "data(city): bundle sourced prewar city plan scans"
+            git pull --rebase origin main
+            git push
+          fi
