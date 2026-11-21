@@ -96,3 +96,28 @@ export function validatedSiteList(city){
  ];
 }
 export const CENTERED_TOWNS=Object.keys(COORDINATES);
+
+/* Genuine WIG operational map sheets, 1:300,000, from the interwar period.
+   These are regional maps (NOT building parcel geometry). Original period varies by sheet. */
+export const REGIONAL_SHEETS={
+ pomorskie:["Toruń",1933,"WIG Mapa Operacyjna Polski - 44 Toruń 1933.jpg"],
+ poznanskie:["Poznań",1935,"WIG Mapa Operacyjna Polski - 53 Poznań 1935.jpg"],
+ warszawskie:["Warszawa",1933,"WIG Mapa Operacyjna Polski - 55 Warszawa 1933.jpg"],
+ lodzkie:["Łódź",1936,"WIG Mapa Operacyjna Polski - 64 Łódź 1936.jpg"],
+ kieleckie:["Kielce",1928,"WIG Mapa Operacyjna Polski - 75 Kielce 1928.jpg"],
+ slaskie:["Cieszyn",1934,"WIG Mapa Operacyjna Polski - 84 Cieszyn 1934.jpg"],
+ krakowskie:["Kraków",1925,"WIG Mapa Operacyjna Polski - 74 Kraków 1925.jpg"],
+ lubelskie:["Lublin",1932,"WIG Mapa Operacyjna Polski - 66 Lublin 1932.jpg"],
+ bialostockie:["Białystok",1929,"WIG Mapa Operacyjna Polski - 46 Białystok 1929.jpg"],
+ nowogrodzkie:["Nowogródek",1931,"WIG Mapa Operacyjna Polski - 47 Nowogródek 1928 1931.jpg"],
+ wilenskie:["Wilno",1930,"WIG Mapa Operacyjna Polski - 37 Wilno 1930.jpg"],
+ poleskie:["Pińsk",1933,"WIG Mapa Operacyjna Polski - 57 Pińsk 1933.jpg"],
+ wolynskie:["Łuck",1928,"WIG Mapa Operacyjna Polski - 77 Łuck 1928.jpg"],
+ lwowskie:["Lwów",1928,"WIG Mapa Operacyjna Polski - 86 Lwów 1928.jpg"],
+ tarnopolskie:["Lwów / Tarnopol çevresi",1928,"WIG Mapa Operacyjna Polski - 86 Lwów 1928.jpg"],
+ stanislawowskie:["Stanisławów / Czerniowce",1930,"WIG Mapa Operacyjna Polski - 97 Stanisławów-Czerniowce (Cernauti) 1930.jpg"]
+};
+export function regionalArchive(id){
+ const row=REGIONAL_SHEETS[id];if(!row)return ARCHIVE.country;
+ return {title:"WIG, arkusz "+row[0],year:row[1],file:row[2],source:"https://commons.wikimedia.org/wiki/File:"+encodeURIComponent(row[2]),rights:"Historical military cartographic sheet"};
+}
