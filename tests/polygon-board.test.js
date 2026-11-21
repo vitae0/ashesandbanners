@@ -102,3 +102,21 @@ test("city portraits are orthographic roof plans, never horizon skylines",()=>{
   assert.doesNotMatch(art,/v-sky|v-building-hit|skyline|horizon/i);
  }
 });
+
+
+test("orthographic city map camera supports a bounded 2.5x zoom and pan",()=>{
+ const s=state(),host={innerHTML:"",addEventListener(){}};
+ const board=new PolygonBoard(host,()=>{});
+ board.mount(s);
+ board.focusTown("Warszawa","warszawskie");
+ board.zoomActive(10);
+ assert.equal(board.cityCamera.w,900/2.5);
+ board.panCityBy(-100,-100);
+ assert.ok(board.cityCamera.x>=0&&board.cityCamera.x<=900-board.cityCamera.w);
+ for(let i=0;i<20;i++)board.zoomCityAt(.5);
+ assert.equal(board.cityCamera.w,900);
+ board.resetCityCamera();
+ assert.deepEqual(board.cityCamera,{x:0,y:0,w:900,h:560});
+ assert.match(host.innerHTML,/data-map-zoom="1.25"/);
+ assert.match(host.innerHTML,/data-map-fit="1"/);
+});
