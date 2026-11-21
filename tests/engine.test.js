@@ -3,12 +3,12 @@ import assert from "node:assert/strict";
 import {
  createGame,advanceDays,after,activeCells,members,MILESTONES,PATHS,
  canMilestone,approveMilestone,pathAvailable,setPath,scheduleOperation,bestCell,
- assetEffects,INSTITUTIONS,institutionRaidRisk,regroup,validateSave,setCentralization,assignCommander,migrateSave,REGION_DATA,recruitCell,acquireAsset
+ assetEffects,INSTITUTIONS,institutionRaidRisk,syncHistoricalAssets,regroup,validateSave,setCentralization,assignCommander,migrateSave,REGION_DATA,recruitCell,acquireAsset
 } from "../src/engine.js";
 import {currentOrganizations,contactFaction,politicalIdentity,earlyALStatus} from "../src/politics.js";
 import {ARCHIVE,COORDINATES,validatedSiteList} from "../src/archival-atlas-data.js";
 import {cityBuildings,PeriodBoard} from "../src/period-board.js";
-import {PLAYABLE_REGIONS,VERIFIED_BUILDING_MAP,getVerifiedSite,verifiedSiteCount} from "../src/verified-sites.js";
+import {PLAYABLE_REGIONS,VERIFIED_BUILDING_MAP,getVerifiedSite,verifiedSiteCount,buildingStatusAt} from "../src/verified-sites.js";
 const setup=(x={})=>createGame({seed:123456,...x});
 test("1940 does not contain AK, PPR, PPR GL or AL",()=>{
  const s=setup();const ids=currentOrganizations(s).map(x=>x.id);
@@ -62,11 +62,19 @@ test("political contact has cost and 28 day cooldown",()=>{
  assert.equal(contactFaction(s,"left").ok,false);
  s.ticks+=28;s.date="1940-01-29";assert.equal(contactFaction(s,"left").ok,true);
 });
-test("church institution boosts are bounded by diminishing returns",()=>{
+test("religious connections are source-approved and bounded, duplicates do not stack",()=>{
  const s=setup(),r="warszawskie",base=assetEffects(s,r).support;
- for(let i=0;i<100;i++)s.assets.push({id:"a"+i,osmId:"way/"+i,region:r,type:"church",visibility:60});
- const full=assetEffects(s,r).support;
- assert.ok(full>base);assert.ok(full<2);
+ const sites=cityBuildings(r,"Warszawa").filter(x=>x.kind==="church");
+ assert.ok(sites.length>=2);
+ assert.equal(acquireAsset(s,sites[0],"church").ok,true);
+ const first=assetEffects(s,r).support;assert.ok(first>base);
+ const duplicate={...s.assets[0],id:"duplicate"};
+ s.assets.push(duplicate,duplicate);
+ assert.equal(assetEffects(s,r).support,first);
+ s.assets=s.assets.slice(0,1);
+ assert.equal(acquireAsset(s,sites[1],"church").ok,true);
+ const second=assetEffects(s,r).support;
+ assert.ok(second>first&&second<3);
 });
 test("more visible institutions face higher raid risk",()=>{
  const state=setup();
@@ -108,7 +116,7 @@ test("archival city map features reference stable names and coordinates, not gen
  assert.equal(JSON.stringify(a),JSON.stringify(b));
  for(const site of a){assert.ok(site.osmId.startsWith("archival/"));assert.ok(site.visibility>=0&&site.visibility<=1)}
  assert.ok(a.some(site=>site.allowed.includes("safehouse")));
- assert.ok(a.some(site=>site.allowed.includes("school")));
+ assert.ok(a.some(site=>site.allowed.includes("cultural")));
 });
 test("legacy 2017-style saves migrate to historical province identifiers",()=>{
  const legacy=setup();legacy.version=1;
@@ -168,10 +176,10 @@ test("no unverified park, plaza, village, or free-form building is accepted",()=
  assert.ok(list.every(b=>b.verifiedPrewar&&!b.polygonVerified&&!!b.source&&b.source.startsWith("https://")));
  assert.ok(list.every(b=>!["Rynek Starego Miasta","Łomianki","Park Źródliska","Plac Wolności"].includes(b.name)));
  assert.equal(acquireAsset(s,{osmId:"custom-building",region:"warszawskie",lat:52.2,lon:21}, "safehouse").ok,false);
- const trueSite=list.find(b=>b.kind==="school");
+ const trueSite=list.find(b=>b.kind==="cultural");
  assert.ok(trueSite);
  assert.equal(acquireAsset(s,trueSite,"safehouse").ok,false);
- assert.equal(acquireAsset(s,trueSite,"school").ok,true);
+ assert.equal(acquireAsset(s,trueSite,"cultural").ok,true);
  assert.ok(s.assets[0].source.includes("warszawa1939.pl"));
  assert.equal(s.assets[0].polygonVerified,false);
 });
@@ -200,4 +208,65 @@ test("map never provides clickable places in undocumented regions",()=>{
  board.focusTown("Warszawa","warszawskie");
  assert.ok(!host.innerHTML.includes("ÇEVRE YERLEŞİMLER"));
  assert.equal((host.innerHTML.match(/data-building=/g)||[]).length,9);
+});
+
+test("Nozyk Synagogue closure and reopening are strictly tied to historical dates",()=>{
+ const site=getVerifiedSite("archival/Warszawa/verified/synagoga-nozykow");
+ assert.ok(site&&site.source.includes("warszawa1939.pl"));
+ assert.equal(buildingStatusAt(site,"1940-01-01").state,"closed");
+ assert.equal(buildingStatusAt(site,"1941-08-31").claimable,false);
+ assert.equal(buildingStatusAt(site,"1941-09-01").claimable,true);
+ assert.equal(buildingStatusAt(site,"1942-07-01").state,"occupied");
+ const state=setup();
+ assert.equal(acquireAsset(state,cityBuildings("warszawskie","Warszawa").find(x=>x.osmId===site.siteId),"synagogue").ok,false);
+ state.date="1941-09-01";
+ const b=cityBuildings("warszawskie","Warszawa").find(x=>x.osmId===site.siteId);
+ assert.equal(acquireAsset(state,b,"synagogue").ok,true);
+ const before=assetEffects(state,"warszawskie").support;
+ assert.ok(before>0);
+ state.date="1942-07-01";syncHistoricalAssets(state);
+ assert.equal(state.assets.length,0);
+});
+test("war-damaged palace and castle never become fictional safehouses",()=>{
+ const s=setup();
+ for(const id of ["palac-saski","zamek-krolewski"]){
+  const site=getVerifiedSite("archival/Warszawa/verified/"+id);
+  assert.equal(buildingStatusAt(site,"1940-01-01").claimable,false);
+  assert.equal(acquireAsset(s,cityBuildings("warszawskie","Warszawa").find(b=>b.osmId===site.siteId),site.type).ok,false);
+ }
+ assert.equal(buildingStatusAt(getVerifiedSite("archival/Warszawa/verified/zamek-krolewski"),"1944-09-01").state,"destroyed");
+ assert.equal(buildingStatusAt(getVerifiedSite("archival/Warszawa/verified/palac-saski"),"1944-12-01").state,"destroyed");
+});
+test("Łódź Cathedral military seizure after November 1941 removes prior connection",()=>{
+ const s=setup();s.date="1941-11-08";
+ const b=cityBuildings("lodzkie","Łódź").find(x=>x.osmId.endsWith("katedra-sw-stanislawa"));
+ assert.ok(b);
+ assert.equal(acquireAsset(s,b,"church").ok,true);
+ s.date="1941-11-09";syncHistoricalAssets(s);
+ assert.equal(s.assets.length,0);
+ assert.equal(acquireAsset(s,b,"church").ok,false);
+});
+test("both society and political milestones remain feasible with corrected real sites",()=>{
+ const s=setup();s.date="1940-07-01";
+ const b=cityBuildings("warszawskie","Warszawa").find(x=>x.kind==="cultural");
+ assert.equal(acquireAsset(s,b,"cultural").ok,true);
+ s.cells[0].members+=30;
+ assert.equal(canMilestone(s,MILESTONES.find(x=>x.id==="schools")),true);
+ s.date="1943-06-01";s.milestones=["uprising"];
+ s.war.started=true;s.war.germanAdvance=30;
+ for(const id of PLAYABLE_REGIONS)s.regions[id].influence=75;
+ s.cells[0].members=605;
+ assert.equal(canMilestone(s,MILESTONES.find(x=>x.id==="liberation")),true);
+});
+test("imported v3 saves cannot resurrect forged or closed sites and duplicate holdings",()=>{
+ const s=setup(),b=cityBuildings("warszawskie","Warszawa").find(x=>x.kind==="cultural");
+ s.version=3;s.assets=[
+  {id:"a1",osmId:b.osmId,region:b.region,type:b.kind},
+  {id:"a2",osmId:b.osmId,region:b.region,type:b.kind},
+  {id:"a3",osmId:"archival/Warszawa/verified/synagoga-nozykow",region:"warszawskie",type:"synagogue"},
+  {id:"a4",osmId:"way/unsigned",region:"warszawskie",type:"factory"}
+ ];
+ const m=migrateSave(s);
+ assert.equal(m.assets.length,1);
+ assert.equal(m.assets[0].osmId,b.osmId);
 });
