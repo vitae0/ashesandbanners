@@ -32,5 +32,6 @@ jobs:
           git add src/historical-geometry.js
           if ! git diff --cached --quiet; then
             git commit -m "data(map): bundle sourced 1938 Central European vector borders (CC BY 4.0)"
+            git pull --rebase origin main
             git push
           fi
