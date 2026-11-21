@@ -38,12 +38,10 @@ Players are **not controlling SZP, ZWZ, AK, GL or AL as sovereign states**. They
 - [Polish government: Peasant Battalions and their formation](https://www.gov.pl/web/uw-mazowiecki/84-rocznica-powolania-batalionow-chlopskich).
 - [Polish education resources: Government Delegation in December 1940](https://zpe.gov.pl/a/polskie-panstwo-podziemne-komunisci-w-czasie-okupacji/DqEzrlI4a).
 
-## Map representation after the offline atlas change
+## Historical map system
 
-The game uses a **fixed illustrated strategic board** representing the borders and all 16 voivodeships of the Second Polish Republic, with eastern territories included. It does not load OpenStreetMap, Leaflet, geoBoundaries, Mapbox, Overpass or any other map service.
+The country map now uses the **original 1939 German military survey** of Poland and its neighboring countries, sourced from Wikimedia Commons. Province and city screens display authentic **WIG 1:300,000 map sheets** from the 1920s and 1930s. **Warsaw** has a 1935 municipal plan and **Łódź** a 1938 city map.
 
-The map is an **approximate original SVG drawing**, inspired by period maps, **not georeferenced historical boundary geometry**. Province lines are generalized. Clickable locality cards are not an official historical powiat boundary survey; the street blocks and houses are explicitly *fictional*. The player still manages seven underground cells, not a government.
+The previous synthetic SVG country shape, Voronoi province polygons, and 24-square fake city blocks were removed. The player may select historic named sites in Warsaw and Łódź, but the game does **not** misrepresent them as digitized 1939 building footprints. A strict data provenance policy is in `docs/cartographic-sources.md`.
 
-Historical reference: [1939 Central Statistical Office administrative map, hosted by Gesher Galicia](https://maps2.geshergalicia.org/galicia/poland-interwar-1939-1/) and [Institute of National Remembrance: occupied Poland, 1939–1941](https://ipn.gov.pl/download/2/49339/AguidetothehistoryofPoland.pdf).
-
-Existing saves created against the previous present-day administrative interface are converted to the 1939 region identifiers. The conversion is approximate and cannot reconstruct missing period locations.
+The **1939** atlas is a prewar reference, **not** a claim that an independent Poland remained in January 1940. Occupation/war politics are modeled separately. For authentic parcels and period-specific occupier boundaries, the project needs a sourced historical georeferencing and vectorization project; this remains incomplete.
