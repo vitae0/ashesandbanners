@@ -6,13 +6,13 @@ A browser-based, 2D historical resistance-management strategy game. **The player
 
 The game is a browser-based 2D resistance-management strategy game. The command UI is organized like a grand-strategy game: **top command menu**, **left-side management panels**, and **full-screen views** for political and military systems. The playable undercover network remains limited to Warsaw and Łódź, but all 16 interwar Polish voivodeships can be opened for a symbolic illustrated city view.
 
-- **Entirely vector-rendered political map:** `src/polygon-board.js` renders a manually authored approximate **1939 Polish external frontier**, nearby states and the **January 1940** administrative/occupation partitions: German-annexed territories, the General Government and Soviet-occupied eastern Poland. All territory, labels, city points and borders are SVG shapes; **no bitmap or network-fetched imagery is used in the current map**.
+- **Source-based vector political map:** `src/polygon-board.js` renders a cached **1938 Polish national frontier** and surrounding states extracted from the **Cliopatria Seshat historical atlas (CC BY 4.0)**, alongside approximate **January 1940** occupation partitions. The interface uses inline SVG only; **no bitmap or network-fetched imagery is used at runtime**.
 - **16 selectable provincial centres:** Toruń, Poznań, Warszawa, Łódź, Kielce, Katowice, Kraków, Lublin, Białystok, Nowogródek, Wilno, Brześć, Łuck, Lwów, Tarnopol and Stanisławów. Dots open a city window.
-- **Polygon city scenes:** Each city view contains deterministic SVG silhouettes with stylized row houses, apartments, public buildings, churches, factories and surrounding rural settlements. The village houses are each a single symbolic building, not real surveyed village geometry.
-- **Historical honesty:** **1939 borders and 1940 occupation sectors are approximate hand-drawn display geometry**, not exact geographic/cadastral datasets. Buildings and villages inside city drawings are fictionalized icons, not historical footprint polygons or named actual sites. The sector layer is a **fixed January 1940 reference even as gameplay time advances**.
+- **Bird’s-eye polygon city plans:** Clicking a city shows deterministic **top-down** SVG streets, rooftops, blocks, plazas, factories, parks, railways and peripheral symbolic villages, not a landscape illustration. These buildings are game graphics, not real surveyed village or building geometry.
+- **Historical honesty:** The imported **1938 borders are historical reconstructions**, not an exact 1 September 1939 official survey. The 1940 occupation polygons and intra-Poland administrative dividers remain schematic. City buildings/villages are symbolic, not true historical building footprints. The sector layer is a **fixed January 1940 reference even as gameplay time advances**.
 - **Verified building interactions remain separate:** Warsaw has 15 documented pre-1940 sites and Łódź 10. Only these documented records offer building/organization actions. Restricted, requisitioned and destroyed historical sites obey date-dependent access rules. A viewable synthetic polygon does not turn into a fictional historical building or safehouse. See `docs/verified-buildings.md`.
 - Gameplay: difficulty, alternate history, seeded RNG, cell recruitment and hierarchy, commanders and standing orders, abstract operations, political contacts, conditional milestones, external war simulation, save/import/export and alternate endings.
-- The old archival raster map assets and `src/period-board.js` are retained as **legacy research references only**. They are not imported by the live atlas except for `cityBuildings` data mapping, which does not render or fetch images.
+- The old archival raster map assets and `src/period-board.js` are retained as **legacy research references only**. The live map imports `cityBuildings` for documented-site records but never renders historical scans. Strategy map pan and zoom are capped at **4×** with wheel, drag, and toolbar controls.
 
 For implementation and accuracy limits, see [Vector atlas documentation](docs/vector-atlas.md).
 
@@ -20,7 +20,7 @@ For implementation and accuracy limits, see [Vector atlas documentation](docs/ve
 
 The game begins as a *fictional local ZWZ-associated resistance network* in January 1940. The ZWZ was renamed **Armia Krajowa** in February 1942; **Gwardia Ludowa** formed in 1942 and **Armia Ludowa** in 1944. Four political paths, including independent AK and AL variants, are explicitly *alternative-history branches*, not claims that all four existed in 1940.
 
-The current cartographic UI is a **manually constructed SVG approximation**. The thick border depicts prewar 1939 Poland; the internal shaded sectors depict a simplified occupation reference for January 1940. These are different historical moments, deliberately labelled as such. All 16 provinces provide city portraits; **only Warszawskie and Łódzkie accept new clandestine cells or documented building connections**. See [vector atlas limitations](docs/vector-atlas.md) and [archival research sources](docs/cartographic-sources.md).
+The current cartographic UI uses **bundled Seshat/Cliopatria 1938 geographic border polygons in SVG**, with simplified occupation zone overlays for January 1940. These are different historical moments, deliberately labelled as such. All 16 provinces provide city portraits; **only Warszawskie and Łódzkie accept new clandestine cells or documented building connections**. See [vector atlas limitations](docs/vector-atlas.md) and [archival research sources](docs/cartographic-sources.md).
 
 ### Run locally
 
@@ -31,7 +31,7 @@ python3 -m http.server 8080
 # then visit http://localhost:8080/
 ```
 
-The current map requires no map library, raster image or network connection. It uses inline SVG drawn from JavaScript point arrays and polygons. GitHub Pages can publish the repository root.
+The current map requires no map library, raster image or network connection at runtime. Country polygon assets are compiled once by GitHub Actions from CC BY 4.0 Cliopatria GeoJSON and committed locally. GitHub Pages can publish the repository root.
 
 ### Test
 
@@ -39,7 +39,7 @@ The current map requires no map library, raster image or network connection. It 
 npm test
 ```
 
-Node.js 20+ recommended. Pure simulation logic is in `src/engine.js`, command UI in `src/app.js`, and polygon geography and city scenes in `src/polygon-board.js`.
+Node.js 20+ recommended. Pure simulation logic is in `src/engine.js`, command UI in `src/app.js`, and credited country polygons in `src/historical-geometry.js`, with pan/zoom and overhead city drawings in `src/polygon-board.js`.
 
 ### Archived cartographic research (not loaded by the live map)
 - [1939 German military chart *Polen* (public domain)](https://commons.wikimedia.org/wiki/File:Polen_1939.jpg)
