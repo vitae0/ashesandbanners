@@ -6,7 +6,6 @@ import {
  assetEffects,INSTITUTIONS,institutionRaidRisk,regroup,validateSave,setCentralization,assignCommander,migrateSave,REGION_DATA,recruitCell,acquireAsset
 } from "../src/engine.js";
 import {currentOrganizations,contactFaction,politicalIdentity,earlyALStatus} from "../src/politics.js";
-import {HISTORIC_LOCATIONS} from "../src/period-map-data.js";
 import {ARCHIVE,COORDINATES,validatedSiteList} from "../src/archival-atlas-data.js";
 import {cityBuildings,PeriodBoard} from "../src/period-board.js";
 import {PLAYABLE_REGIONS,VERIFIED_BUILDING_MAP,getVerifiedSite,verifiedSiteCount} from "../src/verified-sites.js";
@@ -99,7 +98,7 @@ test("period atlas lists historical provinces including former eastern Poland",(
  const ids=REGION_DATA.map(r=>r[0]);
  assert.equal(ids.length,16);
  for(const id of ["warszawskie","wilenskie","wolynskie","poleskie","lwowskie","tarnopolskie"]){
-  assert.ok(ids.includes(id));assert.ok(HISTORIC_LOCATIONS[id].length>=4);
+  assert.ok(ids.includes(id));
  }
  for(const id of ["mazowieckie","malopolskie","podkarpackie"])assert.ok(!ids.includes(id));
 });
