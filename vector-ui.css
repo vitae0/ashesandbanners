@@ -172,3 +172,11 @@ body { background:#101b21; }
 .v-city-illustration-label {fill:#eee4c9;stroke:none;font:700 12px system-ui,sans-serif;letter-spacing:1px}
 .v-village-label {fill:#263b35;stroke:#d4dcbb;stroke-width:2;paint-order:stroke;font:700 10px system-ui,sans-serif}
 @media(max-width:800px){.v-city-art {min-height:260px}.v-city-overhead{min-height:245px}}
+
+
+.v-city-overhead {touch-action:none;cursor:grab;user-select:none}
+.v-city-overhead:active {cursor:grabbing}
+.v-city-zoom {display:flex;align-items:center;gap:5px}
+.v-city-zoom button {font-size:12px;min-width:32px;padding:6px 10px}
+.v-city-zoom button[data-map-zoom] {font-weight:800;font-size:17px}
+@media(max-width:800px){.v-city-foot {flex-wrap:wrap}.v-city-zoom {margin-left:auto}}
