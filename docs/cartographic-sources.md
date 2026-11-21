@@ -49,7 +49,7 @@ What the game currently has:
 
 ## Current selectable geographic objects
 
-The game now allows precisely **9 individually cited historic Warsaw buildings** and **5 individually cited Łódź buildings**, each linked to an original historical catalogue or heritage source. The canonical verified inventory and provenance links are stored in `src/verified-sites.js`, with a readable audit in `docs/verified-buildings.md`. Other city/village names are not selectable and the obsolete locality register was deleted.
+The game now allows precisely **15 individually cited historic Warsaw buildings** and **10 individually cited Łódź buildings**, each linked to an original historical catalogue or heritage source. The canonical verified inventory and provenance links are stored in `src/verified-sites.js`, with a readable audit in `docs/verified-buildings.md`. Other city/village names are not selectable and the obsolete locality register was deleted.
 
 Each listed building includes an approximate latitude and longitude to help developers align **future** verified polygons. These coordinates are NOT sources of a verified building footprint, not guaranteed surveying-grade, and no visible vector polygons have been synthesized from them. A settlement is a single gameplay destination, not a fake 1940 settlement boundary.
 
