@@ -3,16 +3,18 @@ import {
  REGION_DATA,THEMES,DIFFICULTIES,PATHS,MILESTONES,OPERATIONS,INSTITUTIONS,CENT_LEVELS,
  createGame,advanceDays,activeCells,members,influence,regionOf,canMilestone,approveMilestone,
  pathAvailable,setPath,setCentralization,assignCommander,setOrder,recruitCell,
- scoreCell,bestCell,scheduleOperation,acquireAsset,assetEffects,answerEvent,regroup,summary,validateSave,clamp,after
+ scoreCell,bestCell,scheduleOperation,acquireAsset,assetEffects,answerEvent,regroup,summary,validateSave,migrateSave,clamp,after
 } from "./engine.js";
 import {ORGANIZATIONS,CONTACTS,currentOrganizations,contactFaction,politicalIdentity,earlyALStatus} from "./politics.js";
+import {PeriodBoard} from "./period-board.js";
+import {HISTORIC_LOCATIONS} from "./period-map-data.js";
 
 const $=id=>document.getElementById(id);
 const esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const fmt=n=>Math.round(Number(n)||0).toLocaleString("tr-TR");
 const date=d=>new Intl.DateTimeFormat("tr-TR",{day:"numeric",month:"short",year:"numeric",timeZone:"UTC"}).format(new Date(d+"T00:00:00Z"));
-const cities=[["Varşova",52.2297,21.0122,"mazowieckie"],["Łódź",51.7592,19.4550,"lodzkie"],["Kraków",50.0647,19.9450,"malopolskie"],["Lublin",51.2465,22.5684,"lubelskie"],["Kielce",50.8661,20.6286,"swietokrzyskie"],["Poznań",52.4064,16.9252,"wielkopolskie"],["Gdańsk",54.352,18.6466,"pomorskie"]];
-let s=null,tab="overview",running=false,map=null,provinces=null,districts=null,buildings=null,assetsLayer=null,provinceData=[],districtData=[],buildingKey="",buildingStamp=0;
+const cities=[["Varşova",52.2297,21.0122,"warszawskie"],["Łódź",51.7592,19.455,"lodzkie"],["Kraków",50.0647,19.945,"krakowskie"],["Lublin",51.2465,22.5684,"lubelskie"],["Kielce",50.8661,20.6286,"kieleckie"],["Poznań",52.4064,16.9252,"poznanskie"],["Wilno",54.69,25.28,"wilenskie"]];
+let s=null,tab="overview",running=false,map=null;
 const KEY="ashes-and-banners-save-v1";
 const panel=(h,body)=>'<article class="panel"><h3>'+h+'</h3>'+body+'</article>';
 const bar=(v)=>'<div class="bar"><div style="width:'+clamp(v)+'%"></div></div>';
@@ -21,7 +23,7 @@ const heading=(tag,name,sub)=>'<div class="kicker">'+esc(tag)+'</div><h2>'+esc(n
 const btn=(name,action,props="")=>'<button data-action="'+action+'" '+props+'>'+esc(name)+'</button>';
 function notify(msg){const e=$("toast");e.textContent=msg;e.classList.add("show");clearTimeout(notify.id);notify.id=setTimeout(()=>e.classList.remove("show"),3200)}
 function save(){if(s)try{localStorage.setItem(KEY,JSON.stringify(s))}catch(e){notify("Kayıt hatası: "+e.message)}}
-function hasSave(){try{return validateSave(JSON.parse(localStorage.getItem(KEY)))}catch{return false}}
+function hasSave(){try{return validateSave(migrateSave(JSON.parse(localStorage.getItem(KEY))))}catch{return false}}
 function setupSync(){$("start-resource-val").textContent=$("start-resources").value+"%";$("start-chaos-val").textContent=$("start-chaos").value+"%";$("resume-game").hidden=!hasSave()}
 function theme(){const t=THEMES[s.settings.theme]||THEMES.ember;document.documentElement.style.setProperty("--theme",t.hex);document.documentElement.style.setProperty("--theme-rgb",t.rgb);$("map-legend-dot").style.background=t.hex}
 function start(){
@@ -29,12 +31,12 @@ function start(){
  launch(createGame(options));
 }
 function launch(data){
- s=data;s.politics.contacts??={};s.politics.socialists??=28;s.politics.rural??=24;s.politics.nationalists??=18;
+ s=migrateSave(data);if(!validateSave(s))throw Error("Unsupported save schema.");s.politics.contacts??={};s.politics.socialists??=28;s.politics.rural??=24;s.politics.nationalists??=18;
  s.settings.showInfluence??=true;s.settings.autoOrders??=true;
  $("setup").hidden=true;$("game").hidden=false;running=false;$("toggle-time").textContent="▶";
  $("time-speed").value=String(s.settings.speed);
  $("mode-label").textContent=s.settings.history==="historical"?"Tarihsel çizgi":"Alternatif tarih";
- theme();if(!map)initMap();else{setTimeout(()=>map.invalidateSize(),70);paintProvinces();paintDistricts();}
+ theme();if(!map)initMap();else map.mount(s);
  tab="overview";render();save();
 }
 function selected(){return regionOf(s,s.selectedRegion)}
@@ -51,24 +53,22 @@ function render(){
   const e=s.pendingEvent;
   $("event-content").innerHTML='<div class="eyebrow">SİYASİ / TARİHSEL OLAY • '+date(s.date)+'</div><h2>'+esc(e.title)+'</h2><p>'+esc(e.text)+'</p>'+e.choices.map((c,i)=>'<button class="choice" data-action="event" data-index="'+i+'">'+esc(c.name)+'</button>').join("")+'<small>Karar verilene kadar zaman ilerlemez.</small>';
  }
- if(provinces)provinces.setStyle(provinceStyle);
- if(districts)districts.setStyle(districtStyle);
- paintAssets();
- $("map-scope").textContent=selected().name+" • "+(map&&map.getZoom()>=8?"İlçeler":"İller");
+ if(map)map.update(s);
+ $("map-scope").textContent=selected().name+" • "+(map?map.level():"Dönem haritası");
 }
 function overview(){
  const r=selected(),cs=activeCells(s).filter(c=>c.region===r.id),ef=assetEffects(s,r.id);
  const building=s.selectedBuilding;
- let bcontent='<p class="readout">Haritada bir şehre yakınlaşın ve gerçek OSM bina izine tıklayın. Konutlar hücre evi, kurumlar uygun bağlantılar olabilir.</p>';
+ let bcontent='<p class="readout">İl, yerleşim ve temsilî yapı seçin. Konutlar hücre evi; okul, kilise ve hastane gibi kurumlar yerel bağlantı olabilir.</p>';
  if(building){
   const claimed=s.assets.some(a=>a.osmId===building.osmId);
-  bcontent='<div class="panel tight"><b>'+esc(building.name)+'</b><p class="smalltext">Güncel OSM yapısı • '+esc(building.osmId)+' • Görünürlük: '+fmt(building.visibility*100)+'%</p>'
+  bcontent='<div class="panel tight"><b>'+esc(building.name)+'</b><p class="smalltext">Temsilî dönem yapısı • '+esc(building.osmId)+' • Görünürlük: '+fmt(building.visibility*100)+'%</p>'
    +(claimed?'<span class="badge good">Ağa katılmış</span>':'<div class="selectrow"><select id="asset-kind">'+building.allowed.map(v=>'<option value="'+v+'">'+esc(INSTITUTIONS[v].name)+' • '+INSTITUTIONS[v].price+' para</option>').join("")+'</select>'+btn("Bağlantı kur","claim")+'</div>')+'</div>';
  }
  return heading("ÖRGÜT RAPORU","Yeraltı Genel Merkezi","Örgüt devlet değil. Sivil destek, hücreler, gizlilik ve bağlantılarla güçlenirsiniz.")
  +'<div class="grid2">'+metric("Toplam üye",members(s),activeCells(s).length+" hücre")+metric("Ortalama etki",influence(s)+"%","Bölgesel")+metric("Başarılı operasyon",s.records.successful,"Başarısız: "+s.records.failed)+metric("Tutuklanan",s.records.arrests,"Toplam")+'</div>'
  +panel("Seçili bölge · "+esc(r.name),'<div class="grid2"><div><small>Halk desteği '+fmt(r.support)+'%</small>'+bar(r.support)+'</div><div><small>Örgüt etkisi '+fmt(r.influence)+'%</small>'+bar(r.influence)+'</div><div><small>İşgal baskısı '+fmt(r.heat)+'%</small>'+bar(r.heat)+'</div><div><small>Aktif hücre sayısı</small><b> '+cs.length+'</b></div></div><p class="smalltext">'+(s.selectedDistrict?"Seçili ilçe: "+esc(s.selectedDistrict)+". ":"")+'Kurumların haftalık destek katkısı: '+ef.support.toFixed(2)+' (azalan getirili).</p><div class="buttonline">'+btn("Bölgeye odaklan","region")+btn("Hücre kur • 65 para","new-cell")+btn("Operasyonlar →","operations-tab")+'</div>')
- +panel("Harita ve kurum bağlantıları",'<p class="smalltext">İl ve ilçe sınırları gerçek güncel GIS verilerinden gelir. Binalar güncel OSM nesneleridir. 1940 tarihsel kadastro verisi değildir.</p><div class="grid2">'+metric("Bağlı yapı",s.assets.filter(a=>a.region===r.id).length)+metric("Sığınma gizliliği",ef.secrecy.toFixed(1))+'</div><div class="buttonline">'+cities.slice(0,4).map(c=>'<button data-action="city" data-name="'+esc(c[0])+'">'+esc(c[0])+'</button>').join("")+btn("Binaları yükle","buildings")+'</div>'+bcontent)
+ +panel("Harita ve kurum bağlantıları",'<p class="smalltext">1939 Polonya coğrafyası temel alınmış statik dönem haritası. İl sınırları yaklaşık; yerleşimler ve bina parselleri oyun amaçlı şematik gösterilir.</p><div class="grid2">'+metric("Bağlı yapı",s.assets.filter(a=>a.region===r.id).length)+metric("Sığınma gizliliği",ef.secrecy.toFixed(1))+'</div><div class="buttonline">'+cities.slice(0,4).map(c=>'<button data-action="city" data-name="'+esc(c[0])+'">'+esc(c[0])+'</button>').join("")+btn("Mahalle krokisi","buildings")+'</div>'+bcontent)
  +panel("Son gelişmeler",s.log.slice(0,7).map(l=>'<div class="listitem smalltext"><small>'+date(l.date)+'</small><div>'+esc(l.message)+'</div></div>').join(""));
 }
 function network(){
@@ -130,7 +130,7 @@ function settings(){
  return heading("SİSTEM","Oyun Ayarları","Oynanış, zorluk, otomasyon ve görsel tercihler oyun sırasında değiştirilebilir.")
  +'<div class="panel stack">'+select("difficulty",Object.entries(DIFFICULTIES).map(([id,v])=>[id,v.name]))+select("events",[["calm","Seyrek"],["normal","Dengeli"],["intense","Yoğun"]])+select("history",[["historical","Tarihsel"],["alternate","Alternatif"]])+select("theme",Object.entries(THEMES).map(([id,v])=>[id,v.name]))+'<label>Kaos / alternatif sapma <input type="range" min="0" max="100" data-setting="chaos" value="'+g.chaos+'"></label><label class="selectrow"><input type="checkbox" data-setting="autoOrders" style="width:18px" '+(g.autoOrders?"checked":"")+'> Otomatik komutan emirleri</label><label class="selectrow"><input type="checkbox" data-setting="showInfluence" style="width:18px" '+(g.showInfluence?"checked":"")+'> Etki haritası</label></div>'
  +panel("Kayıt",'<div class="buttonline">'+btn("Kaydet","save")+btn("JSON dışa aktar","export")+btn("JSON içe aktar","import")+btn("Yeni kampanya","new-game")+'</div><p class="smalltext muted">RNG tohumu: '+s.seed+' • Kayıt şeması: '+s.version+'</p>')
- +'<p class="readout">Gerçek OSM koordinatları ve güncel idari sınırlar kullanılır. Bunları 1940 sınırları veya dönemin gerçek bina envanteri sanmayın.</p>';
+ +'<p class="readout">Harita 1939 Polonya’sının dönem temalı şematik gösterimidir. Bölgeler yaklaşık, yerleşim kartları ve bina yerleri temsilîdir; dış harita servisi kullanılmaz.</p>';
 }
 function ending(){
  const v=summary(s);
@@ -139,126 +139,15 @@ function ending(){
  return heading("SONUÇ",ed[0],ed[1])+'<div class="grid2">'+metric("Gün",v.days)+metric("Hücre",v.cells)+metric("Başarılı",v.successful)+metric("Tutuklama",v.arrests)+'</div>'
  +panel("Kampanya değerlendirmesi",'<p>Üye: '+v.members+' • Etki: '+v.influence+'% • Başarısız görev: '+v.failed+' • Yeniden kuruluş: '+v.restarts+'</p><div class="buttonline">'+(s.status==="suppressed"?btn("4–18 ay sonra yeniden kur","regroup",'class="primary"'):"")+btn("Raporu indir","export")+btn("Yeni oyun","new-game")+'</div>');
 }
-/* Geographic layers. Modern official-ish community geometry is used, never claimed to be 1940 borders. */
-function normalize(str){return String(str||"").toLocaleLowerCase("pl-PL").replace(/ł/g,"l").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/wojewodztwo|voivodeship|powiat|county|province|miasto/g,"").replace(/[^a-z]/g,"")}
-function closestRegion(lat,lng){let found=REGION_DATA[0],dist=Infinity;for(const r of REGION_DATA){const d=(r[2]-lat)**2+((r[3]-lng)*.64)**2;if(d<dist){dist=d;found=r}}return found[0]}
-function pointInRing(point,ring){let inside=false;for(let a=0,b=ring.length-1;a<ring.length;b=a++){const x=ring[a][0],y=ring[a][1],u=ring[b][0],v=ring[b][1];if(((y>point[1])!==(v>point[1]))&&point[0]<(u-x)*(point[1]-y)/(v-y)+x)inside=!inside}return inside}
-function insideFeature(p,f){const g=f.geometry;if(!g)return false;const poly=g.type==="Polygon"?[g.coordinates]:(g.type==="MultiPolygon"?g.coordinates:[]);return poly.some(parts=>parts[0]&&pointInRing(p,parts[0])&&!parts.slice(1).some(hole=>pointInRing(p,hole)))}
-function featureRegion(f){
- const name=normalize(f.properties?.shapeName||f.properties?.name||"");
- const match=REGION_DATA.find(r=>normalize(r[1])===name||normalize(r[1]).includes(name)&&name.length>4);
- if(match)return match[0];
- const center=L.geoJSON(f).getBounds().getCenter();return closestRegion(center.lat,center.lng);
-}
-function regionAt(lat,lng){
- const hit=provinceData.find(f=>insideFeature([lng,lat],f));return hit?featureRegion(hit):closestRegion(lat,lng);
-}
-function provinceStyle(f){
- const id=featureRegion(f),r=regionOf(s,id),c=(THEMES[s.settings.theme]||THEMES.ember).hex;
- return {color:s.selectedRegion===id?"#f4e7c7":"#a4b5b3",weight:s.selectedRegion===id?2.2:.8,fillColor:c,fillOpacity:s.settings.showInfluence?clamp(r.influence*.008+.035,.045,.82):.012};
-}
-function districtStyle(f){
- const center=L.geoJSON(f).getBounds().getCenter(),id=regionAt(center.lat,center.lng),r=regionOf(s,id),c=(THEMES[s.settings.theme]||THEMES.ember).hex;
- return {color:"#d4dfd9",weight:.6,fillColor:c,fillOpacity:s.settings.showInfluence?clamp(r.influence*.007+.035,.04,.70):.01};
-}
-function featureName(f){return f.properties?.shapeName||f.properties?.name||"İsimsiz bölge"}
-function paintProvinces(){
- if(!map||!provinceData.length)return;
- if(provinces)map.removeLayer(provinces);
- provinces=L.geoJSON(provinceData,{style:provinceStyle,onEachFeature:(f,layer)=>{
-  const n=featureName(f),id=featureRegion(f);layer.bindTooltip(n,{sticky:true});
-  layer.on("click",()=>{s.selectedRegion=id;s.selectedDistrict="";render();save()});
- }}).addTo(map);
-}
-function paintDistricts(){
- if(!map||!districtData.length)return;
- if(districts)map.removeLayer(districts);
- districts=L.geoJSON(districtData,{style:districtStyle,onEachFeature:(f,ly)=>{
-  const n=featureName(f),mid=ly.getBounds().getCenter(),id=regionAt(mid.lat,mid.lng);
-  ly.bindTooltip(n,{sticky:true});ly.on("click",()=>{s.selectedRegion=id;s.selectedDistrict=n;render();save()});
- }});
- toggleDistricts();
-}
-function toggleDistricts(){
- if(!map||!districts)return;
- if(map.getZoom()>=8&&!map.hasLayer(districts))districts.addTo(map);
- if(map.getZoom()<8&&map.hasLayer(districts))map.removeLayer(districts);
-}
-async function fetchJson(url){
- const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),22000);
- try{const response=await fetch(url,{signal:controller.signal});if(!response.ok)throw Error("HTTP "+response.status);return response.json()}finally{clearTimeout(timer)}
-}
-async function boundary(level){
- const meta=await fetchJson("https://www.geoboundaries.org/api/current/gbOpen/POL/"+level+"/");
- const url=meta.simplifiedGeometryGeoJSON||meta.gjDownloadURL;
- if(!url)throw Error("Geometry URL missing");
- const geo=await fetchJson(url);if(!geo.features?.length)throw Error("Empty boundary");return geo.features;
-}
-async function loadBoundaries(){
- $("map-status").textContent="Gerçek, güncel il ve ilçe sınırları yükleniyor…";
- const a=await Promise.allSettled([boundary("ADM1"),boundary("ADM2")]);
- if(a[0].status==="fulfilled"){provinceData=a[0].value;paintProvinces();$("map-status").textContent=provinceData.length+" güncel il sınırı yüklendi."}
- else $("map-status").textContent="İl sınır servisi erişilemiyor; OSM taban haritası açık.";
- if(a[1].status==="fulfilled"){districtData=a[1].value;paintDistricts();$("map-status").textContent+=" "+districtData.length+" ilçe sınırı yüklendi."}
- else $("map-status").textContent+=" İlçe servisi erişilemiyor.";
-}
-function paintAssets(){
- if(!map||!assetsLayer)return;assetsLayer.clearLayers();
- const c=(THEMES[s.settings.theme]||THEMES.ember).hex;
- for(const [name,lat,lng,id] of cities){
-  const mark=L.circleMarker([lat,lng],{radius:5,color:"#fff",fillColor:c,fillOpacity:.87});
-  mark.bindTooltip(name);mark.on("click",()=>{s.selectedRegion=id;s.selectedDistrict="";render();map.setView([lat,lng],13)});mark.addTo(assetsLayer);
- }
- for(const a of s.assets){
-  const mark=L.circleMarker([a.lat,a.lon],{radius:7,color:"#fff",fillColor:"#f5bc6c",fillOpacity:.95});
-  mark.bindPopup("<b>"+esc(a.name)+"</b><br>"+esc(INSTITUTIONS[a.type]?.name||a.type)+"<br>Görünürlük "+fmt(a.visibility)+"%");
-  mark.addTo(assetsLayer);
- }
-}
+/* Pure SVG period atlas. No external map services. */
 function initMap(){
- if(!window.L){$("map-status").textContent="Harita kütüphanesi yüklenemedi (internet gerekli).";return}
- map=L.map("map",{preferCanvas:true,zoomControl:true}).setView([52.0,19.2],6);
- L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'}).addTo(map);
- buildings=L.layerGroup().addTo(map);assetsLayer=L.layerGroup().addTo(map);
- map.on("zoomend",()=>{toggleDistricts();if(map.getZoom()>=15)loadBuildings();else if(buildings){buildings.clearLayers();buildingKey="";}});
- map.on("moveend",()=>{if(map.getZoom()>=15)loadBuildings()});
- setTimeout(()=>map.invalidateSize(),80);paintAssets();loadBoundaries();
-}
-function buildingKind(tags){
- const a=tags.amenity||"",b=tags.building||"";
- if(a==="place_of_worship"||b==="church")return "church";
- if(a==="school"||a==="university"||b==="school")return "school";
- if(a==="hospital"||a==="clinic"||b==="hospital")return "hospital";
- if(b==="industrial"||b==="factory")return "factory";
- if(tags.railway||b==="train_station")return "railway";
- if(a==="library"||b==="commercial"||b==="office")return "press";
- return "safehouse";
-}
-async function loadBuildings(force=false){
- if(!map||!s||!buildings||map.getZoom()<14)return;
- const c=map.getCenter(),key=Math.floor(c.lat*180)+"."+Math.floor(c.lng*180);
- if(!force&&(key===buildingKey||Date.now()-buildingStamp<18000))return;
- buildingKey=key;buildingStamp=Date.now();
- $("map-status").textContent="OSM bina geometrileri sorgulanıyor…";
- const q='[out:json][timeout:20];way["building"]('+(c.lat-.006)+","+(c.lng-.009)+","+(c.lat+.006)+","+(c.lng+.009)+');out geom 130;';
- try{
-  let data,err;
-  for(const endpoint of ["https://overpass.kumi.systems/api/interpreter","https://overpass-api.de/api/interpreter"]){
-   try{data=await fetchJson(endpoint+"?data="+encodeURIComponent(q));break}catch(e){err=e}
-  }
-  if(!data)throw err||Error("Overpass unavailable");
-  buildings.clearLayers();
-  for(const o of (data.elements||[]).filter(o=>o.geometry?.length>=3).slice(0,130)){
-   const points=o.geometry.map(x=>[x.lat,x.lon]),tags=o.tags||{},kind=buildingKind(tags),id="way/"+o.id;
-   const center=L.polygon(points).getBounds().getCenter(),owned=s.assets.some(a=>a.osmId===id);
-   const b={osmId:id,lat:center.lat,lon:center.lng,region:regionAt(center.lat,center.lng),kind,allowed:kind==="safehouse"?["safehouse"]:["safehouse",kind],name:tags.name||"OSM bina "+o.id,visibility:clamp((INSTITUTIONS[kind]?.visibility||.25)+(tags.name?.12:0),.08,.95)};
-   const p=L.polygon(points,{color:owned?"#e0a86d":"#9fcfc4",weight:owned?2:1,fillOpacity:owned?.5:.16,fillColor:owned?"#edb376":"#70c3af"});
-   p.bindTooltip(esc(b.name),{sticky:true});
-   p.on("click",()=>{s.selectedBuilding=b;s.selectedRegion=b.region;render();p.bindPopup("<b>"+esc(b.name)+"</b><br>Güncel OSM bina izi").openPopup();});
-   p.addTo(buildings);
-  }
-  $("map-status").textContent=buildings.getLayers().length+" bina yüklendi (güncel OSM, tarihsel değil).";
- }catch(e){$("map-status").textContent="Bina API erişilemedi: "+e.message}
+ map=new PeriodBoard($("map"),(_state,event)=>{
+   if(!s)return;
+   if(event.type==="building"){tab="overview";document.querySelectorAll("[data-tab]").forEach(b=>b.classList.toggle("active",b.dataset.tab==="overview"));}
+   render();save();
+ });
+ map.mount(s);
+ $("map-status").textContent="Polonya 1939 • çevrimdışı dönem haritası";
 }
 function exportSave(){
  const blob=new Blob([JSON.stringify(s,null,2)],{type:"application/json"}),url=URL.createObjectURL(blob),a=document.createElement("a");
@@ -266,7 +155,7 @@ function exportSave(){
 }
 async function importFile(file){
  if(!file)return;
- try{const data=JSON.parse(await file.text());if(!validateSave(data))throw Error("Geçersiz kayıt");launch(data);notify("Kayıt yüklendi.")}
+ try{const data=JSON.parse(await file.text());if(!validateSave(migrateSave(data)))throw Error("Geçersiz kayıt");launch(data);notify("Kayıt yüklendi.")}
  catch(e){notify("Kayıt okunamadı: "+e.message)}
 }
 function perform(b){
@@ -280,9 +169,9 @@ function perform(b){
  if(ac==="recruit"||ac==="new-cell")result=recruitCell(s,ac==="recruit"?$("recruit-region").value:s.selectedRegion);
  if(ac==="start-operation")result=scheduleOperation(s,$("op-type").value,$("op-cell").value);
  if(ac==="claim"){result=acquireAsset(s,s.selectedBuilding,$("asset-kind").value);if(result.ok)s.selectedBuilding=null;}
- if(ac==="region"&&map){const r=selected();map.setView([r.lat,r.lon],10)}
- if(ac==="city"&&map){const c=cities.find(x=>x[0]===b.dataset.name);if(c){s.selectedRegion=c[3];map.setView([c[1],c[2]],15);loadBuildings(true)}}
- if(ac==="buildings"&&map){const r=selected();if(map.getZoom()<14)map.setView([r.lat,r.lon],15);loadBuildings(true)}
+ if(ac==="region"&&map)map.focusRegion(s.selectedRegion)
+ if(ac==="city"&&map){const c=cities.find(x=>x[0]===b.dataset.name);if(c)map.focusTown(c[0],c[3])}
+ if(ac==="buildings"&&map)map.focusTown((HISTORIC_LOCATIONS[s.selectedRegion]||["Merkez"])[0],s.selectedRegion)
  if(ac==="operations-tab")switchTab("operations");
  if(ac==="save"){save();notify("Kaydedildi.")}
  if(ac==="export")exportSave();
@@ -312,14 +201,13 @@ function bind(){
    if(key==="history"&&value==="historical")s.war.sovietVictory=true;
    if(key==="history"&&value==="alternate")s.war.sovietVictory=((s.seed%100)<80);
    if(key==="theme")theme();
-   if(key==="showInfluence"&&provinces)provinces.setStyle(provinceStyle);
-   if(key==="showInfluence"&&districts)districts.setStyle(districtStyle);
+   if(key==="showInfluence"&&map)map.update(s);
    $("mode-label").textContent=s.settings.history==="historical"?"Tarihsel çizgi":"Alternatif tarih";
    save();render();
   }
  });
  $("new-game").addEventListener("click",start);
- $("resume-game").addEventListener("click",()=>{try{const loaded=JSON.parse(localStorage.getItem(KEY));if(!validateSave(loaded))throw Error("Kayıt bozuk");launch(loaded)}catch(e){notify(e.message)}});
+ $("resume-game").addEventListener("click",()=>{try{const loaded=migrateSave(JSON.parse(localStorage.getItem(KEY)));if(!validateSave(loaded))throw Error("Kayıt bozuk");launch(loaded)}catch(e){notify(e.message)}});
  $("import-setup").addEventListener("click",()=>$("file-import").click());
  $("file-import").addEventListener("change",e=>{importFile(e.target.files?.[0]);e.target.value=""});
  $("start-resources").addEventListener("input",setupSync);$("start-chaos").addEventListener("input",setupSync);
@@ -327,8 +215,8 @@ function bind(){
  $("next-day").addEventListener("click",()=>{if(s){advanceDays(s,1);save();render()}});
  $("time-speed").addEventListener("change",e=>{if(s){s.settings.speed=+e.target.value;save()}});
  $("save-game").addEventListener("click",()=>{save();notify("Kaydedildi.")});
- $("map-home").addEventListener("click",()=>{if(map)map.setView([52,19.2],6)});
- $("map-city").addEventListener("click",()=>{if(map){map.setView([52.2297,21.0122],15);loadBuildings(true)}});
+ $("map-home").addEventListener("click",()=>{if(map)map.home()});
+ $("map-city").addEventListener("click",()=>{if(map)map.focusCapital()});
  $("map-layer").addEventListener("click",()=>{if(s){s.settings.showInfluence=!s.settings.showInfluence;$("map-layer").textContent="Etki katmanı: "+(s.settings.showInfluence?"Açık":"Kapalı");save();render()}});
  setInterval(()=>{if(!s||!running||s.pendingEvent||s.status!=="running"){if(s&&s.pendingEvent&&running){running=false;$("toggle-time").textContent="▶"}return}advanceDays(s,s.settings.speed||3);save();render()},1000);
 }
