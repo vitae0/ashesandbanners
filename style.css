@@ -29,3 +29,36 @@
 .map-legend #map-legend-dot{display:inline-block;width:9px;height:9px;border-radius:3px}
 .map-status{background:#1b2228ed;color:#e8dfc9;max-width:calc(100% - 28px)}
 @media (max-width:800px){.map-panel #map{height:62vh;min-height:360px}.period-svg .paper-title{font-size:28px}}
+
+
+/* Source-backed 1939 archival map presentation. Raster imagery is archival, not generated. */
+.map-panel #map{display:block;overflow:auto;background:#bca980;padding:0;min-height:0}
+.atlas-sheet{height:100%;min-height:360px;display:flex;justify-content:center;align-items:center;background:#b6aa8a}
+.atlas-image{display:block;max-width:100%;height:100%;max-height:100%;min-height:340px;object-fit:contain}
+.atlas-caption{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px;padding:9px;background:#e0d5b6;border-top:1px solid #877658;color:#4a3c28;font:12px/1.5 Georgia,serif}
+.atlas-caption b{font-size:11px;letter-spacing:1px;color:#574226}
+.board-source{display:inline-block;margin:4px 8px;color:#4e4636;text-decoration:underline;font:11px/1.4 Georgia,serif}
+.atlas-pin{cursor:pointer;outline:none}
+.atlas-pin:hover circle:first-child,.atlas-pin:focus circle:first-child{stroke:#1f1710;stroke-width:4}
+.atlas-subhead{display:flex;flex-wrap:wrap;gap:12px;align-items:center;padding:11px;background:#dcd0af;color:#4a3d2f;font:14px Georgia,serif}
+.atlas-subhead button{font:12px Georgia,serif;background:#baa781;border:1px solid #9f8969;color:#382f21}
+.atlas-subhead small{margin-left:auto;color:#675941}
+.atlas-province{height:min(52vh,500px);overflow:hidden;display:flex;justify-content:center;background:#bba780}
+.atlas-province .atlas-image{width:100%;height:100%;max-height:none}
+.atlas-settlement-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;padding:12px;background:#e6dbbf}
+.atlas-settlement-list button{font:13px Georgia,serif;background:#d2c3a2;border:1px solid #a08e6d;color:#4b3c26;min-width:0}
+.atlas-settlement-list button:hover{background:#c2ae88;color:#291f17}
+.atlas-note{margin:0;padding:11px 14px;background:#e4d9bc;border-top:1px solid #a59171;color:#5f4d33;font:12px/1.45 Georgia,serif}
+.atlas-city-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(175px,245px);height:min(64vh,645px);min-height:300px;background:#e4d6b6}
+.atlas-city-scan{overflow:auto;position:relative;display:flex;justify-content:center;align-items:flex-start;background:#cabd9e}
+.atlas-city-scan img{display:block;max-width:none;max-height:none;width:100%;height:auto}
+.atlas-scanlabel{position:sticky;left:0;bottom:0;margin:auto auto 0 0;padding:6px 9px;background:#e7d8b6dd;color:#4b3927;font:11px Georgia,serif}
+.atlas-sites{overflow:auto;border-left:2px solid #a48c63;background:#e3d7ba;padding:10px}
+.atlas-section-title{display:flex;justify-content:space-between;gap:8px;padding:8px 0 6px;color:#5d4c34;border-bottom:1px solid #bba887;font:700 10px system-ui,sans-serif;letter-spacing:1px}
+.atlas-section-title small{color:#695b43}
+.atlas-site{display:block;width:100%;text-align:left;background:#d4c5a7;border:1px solid #af9b79;color:#493a28;margin-top:6px;padding:8px 7px;font:12px Georgia,serif}
+.atlas-site:hover,.atlas-site:focus{background:#baab8b;border-color:#665435}
+.atlas-site small{display:block;color:#74654d;margin-top:3px;font:10px Georgia,serif}
+.atlas-site.is-owned{border-left:3px solid var(--theme)}
+.atlas-warning{padding:12px;color:#655238;font:11px Georgia,serif}
+@media(max-width:800px){.atlas-city-layout{display:flex;flex-direction:column;height:auto}.atlas-city-scan{height:43vh}.atlas-sites{max-height:43vh;border-left:none;border-top:2px solid #a48c63}.atlas-sheet{height:57vh}.atlas-settlement-list{grid-template-columns:repeat(2,1fr)}}
