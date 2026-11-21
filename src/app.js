@@ -6,7 +6,7 @@ import {
  scoreCell,bestCell,scheduleOperation,acquireAsset,assetEffects,answerEvent,regroup,summary,validateSave,migrateSave,clamp,after
 } from "./engine.js";
 import {ORGANIZATIONS,CONTACTS,currentOrganizations,contactFaction,politicalIdentity,earlyALStatus} from "./politics.js";
-import {PeriodBoard} from "./period-board.js";
+import {PolygonBoard} from "./polygon-board.js";
 import {PLAYABLE_REGIONS,PLAYABLE_CITIES,getVerifiedSite,buildingStatusAt} from "./verified-sites.js";
 
 const $=id=>document.getElementById(id);
@@ -37,29 +37,31 @@ function launch(data){
  $("time-speed").value=String(s.settings.speed);
  $("mode-label").textContent=s.settings.history==="historical"?"Tarihsel çizgi":"Alternatif tarih";
  theme();if(!map)initMap();else map.mount(s);
- tab="overview";render();save();
+ tab="overview";document.querySelectorAll("[data-tab]").forEach(b=>b.classList.toggle("active",b.dataset.tab===tab));render();save();
 }
 function selected(){return regionOf(s,s.selectedRegion)}
-function switchTab(t){tab=t;document.querySelectorAll("[data-tab]").forEach(b=>b.classList.toggle("active",b.dataset.tab===t));render()}
+function switchTab(t){tab=tab===t?"map":t;document.querySelectorAll("[data-tab]").forEach(b=>b.classList.toggle("active",b.dataset.tab===tab));render()}
 function render(){
  if(!s)return;
  $("org-name").textContent=politicalIdentity(s);
  $("date-label").textContent=date(s.date);
  $("stats").innerHTML=[["ÜYE",members(s)],["HÜCRE",activeCells(s).length],["PARA",fmt(s.funds)],["MALZEME",fmt(s.supplies)],["İSTİHBARAT",fmt(s.intel)],["MEŞRUİYET",fmt(s.legitimacy)+"%"],["ALARM",fmt(s.alert)+"%"]].map(x=>'<div class="stat"><small>'+x[0]+'</small><b>'+esc(x[1])+'</b></div>').join("");
  const templates={overview,network,operations,politics,milestones,war,archive,settings};
- $("content").innerHTML=(s.status==="running"?(templates[tab]||overview)():ending());
+ $("game").classList.toggle("map-only",tab==="map");
+ $("game").classList.toggle("full-panel",["politics","milestones","war","archive","settings"].includes(tab));
+ $("content").innerHTML=tab==="map"?"":(s.status==="running"?(templates[tab]||overview)():ending());
  $("event-mask").hidden=!s.pendingEvent||s.status!=="running";
  if(s.pendingEvent&&s.status==="running"){
   const e=s.pendingEvent;
   $("event-content").innerHTML='<div class="eyebrow">SİYASİ / TARİHSEL OLAY • '+date(s.date)+'</div><h2>'+esc(e.title)+'</h2><p>'+esc(e.text)+'</p>'+e.choices.map((c,i)=>'<button class="choice" data-action="event" data-index="'+i+'">'+esc(c.name)+'</button>').join("")+'<small>Karar verilene kadar zaman ilerlemez.</small>';
  }
  if(map)map.update(s);
- $("map-scope").textContent=selected().name+" • "+(map?map.level():"Dönem haritası");
+ $("map-scope").textContent=selected().name+" • "+(map?map.level():"Poligon haritası");
 }
 function overview(){
  const r=selected(),cs=activeCells(s).filter(c=>c.region===r.id),ef=assetEffects(s,r.id);
  const building=s.selectedBuilding;
- let bcontent='<p class="readout">Yalnızca savaş öncesi varlığı belgelenen binalar seçilebilir. Belgesiz köyler, meydanlar ve diğer şehirlerin bina kayıtları kaldırıldı.</p>';
+ let bcontent='<p class="readout">Şehir ve köy poligonları görsel temsildir. Yalnızca belgelenmiş binalar oyun içi kurum bağlantısı kurabilir.</p>';
  if(building){
   const site=getVerifiedSite(building.osmId),access=buildingStatusAt(site,s.date);
   const claimed=s.assets.some(a=>a.osmId===building.osmId);
@@ -75,7 +77,7 @@ function overview(){
  return heading("ÖRGÜT RAPORU","Yeraltı Genel Merkezi","Örgüt devlet değil. Sivil destek, hücreler, gizlilik ve bağlantılarla güçlenirsiniz.")
  +'<div class="grid2">'+metric("Toplam üye",members(s),activeCells(s).length+" hücre")+metric("Ortalama etki",influence(s)+"%","Bölgesel")+metric("Başarılı operasyon",s.records.successful,"Başarısız: "+s.records.failed)+metric("Tutuklanan",s.records.arrests,"Toplam")+'</div>'
  +panel("Seçili bölge · "+esc(r.name),'<div class="grid2"><div><small>Halk desteği '+fmt(r.support)+'%</small>'+bar(r.support)+'</div><div><small>Örgüt etkisi '+fmt(r.influence)+'%</small>'+bar(r.influence)+'</div><div><small>İşgal baskısı '+fmt(r.heat)+'%</small>'+bar(r.heat)+'</div><div><small>Aktif hücre sayısı</small><b> '+cs.length+'</b></div></div><p class="smalltext">'+(s.selectedDistrict?"Seçili ilçe: "+esc(s.selectedDistrict)+". ":"")+'Kurumların haftalık destek katkısı: '+ef.support.toFixed(2)+' (azalan getirili).</p><div class="buttonline">'+btn("Bölgeye odaklan","region")+btn("Hücre kur • 65 para","new-cell")+btn("Operasyonlar →","operations-tab")+'</div>')
- +panel("Harita ve kurum bağlantıları",'<p class="smalltext">Gerçek 1939 ülke haritası ve dönemin şehir planları kullanılır. Yalnızca Varşova ve Łódź’da kaynaklı bina kayıtları açıktır; doğrulanmamış poligon çizilmez.</p><div class="grid2">'+metric("Bağlı yapı",s.assets.filter(a=>a.region===r.id).length)+metric("Sığınma gizliliği",ef.secrecy.toFixed(1))+'</div><div class="buttonline">'+cities.slice(0,4).map(c=>'<button data-action="city" data-name="'+esc(c[0])+'">'+esc(c[0])+'</button>').join("")+btn("Mahalle krokisi","buildings")+'</div>'+bcontent)
+ +panel("Harita ve kurum bağlantıları",'<p class="smalltext">1939 Polonya sınırı, çevre ülkeler ve 1940 işgal bölgeleri SVG poligonlarla yaklaşık çizilmiştir. Tüm iller şehir görüntüsüne açılır; yalnızca Varşova ve Łódź’nın belgelendirilmiş binaları oyun mekaniğine bağlıdır.</p><div class="grid2">'+metric("Bağlı yapı",s.assets.filter(a=>a.region===r.id).length)+metric("Sığınma gizliliği",ef.secrecy.toFixed(1))+'</div><div class="buttonline">'+cities.slice(0,4).map(c=>'<button data-action="city" data-name="'+esc(c[0])+'">'+esc(c[0])+'</button>').join("")+btn("Mahalle krokisi","buildings")+'</div>'+bcontent)
  +panel("Son gelişmeler",s.log.slice(0,7).map(l=>'<div class="listitem smalltext"><small>'+date(l.date)+'</small><div>'+esc(l.message)+'</div></div>').join(""));
 }
 function network(){
@@ -148,13 +150,13 @@ function ending(){
 }
 /* Pure SVG period atlas. No external map services. */
 function initMap(){
- map=new PeriodBoard($("map"),(_state,event)=>{
+ map=new PolygonBoard($("map"),(_state,event)=>{
    if(!s)return;
    if(event.type==="building"){tab="overview";document.querySelectorAll("[data-tab]").forEach(b=>b.classList.toggle("active",b.dataset.tab==="overview"));}
    render();save();
  });
  map.mount(s);
- $("map-status").textContent="1939 savaş öncesi arşiv haritası • 1940 egemenlik sınırları değildir";
+ $("map-status").textContent="Elle çizilmiş SVG • 1939 sınırı / Ocak 1940 işgal düzeni • yaklaşık";
 }
 function exportSave(){
  const blob=new Blob([JSON.stringify(s,null,2)],{type:"application/json"}),url=URL.createObjectURL(blob),a=document.createElement("a");
@@ -178,7 +180,7 @@ function perform(b){
  if(ac==="claim"){result=acquireAsset(s,s.selectedBuilding,$("asset-kind").value);if(result.ok)s.selectedBuilding=null;}
  if(ac==="region"&&map)map.focusRegion(s.selectedRegion)
  if(ac==="city"&&map){const c=cities.find(x=>x[0]===b.dataset.name);if(c)map.focusTown(c[0],c[3])}
- if(ac==="buildings"&&map)map.focusTown(PLAYABLE_CITIES.find(x=>x==="Łódź"&&s.selectedRegion==="lodzkie")||"Warszawa",s.selectedRegion)
+ if(ac==="buildings"&&map)map.focusRegion(s.selectedRegion)
  if(ac==="operations-tab")switchTab("operations");
  if(ac==="save"){save();notify("Kaydedildi.")}
  if(ac==="export")exportSave();
