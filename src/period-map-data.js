@@ -44,8 +44,9 @@ const OCCUPATION_1940={
  wolynskie:"soviet",lwowskie:"soviet",tarnopolskie:"soviet",stanislawowskie:"soviet"
 };
 export function periodOccupation(date,id){
- if(date<"1941-06-22")return OCCUPATION_1940[id]||"general";
- if(date<"1944-01-01")return "german";
+ const original=OCCUPATION_1940[id]||"general";
+ if(date<"1941-06-22")return original;
+ if(date<"1944-01-01")return original==="soviet"?"german":original;
  return "contested";
 }
 function halfPlane(poly,p,q){
