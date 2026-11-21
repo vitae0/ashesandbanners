@@ -80,6 +80,8 @@ export class PeriodBoard {
    '<circle cx="'+x+'" cy="'+(y-11)+'" r="2.5" fill="#3e3529"/>'+
    '<text x="'+x+'" y="'+(y+4)+'" text-anchor="middle" class="'+font+'">'+escape(label)+'</text></g>';
   }).join("");
+  const periodLabel=s.date<"1941-06-22"?"SSCB (1940)":s.date<"1944-01-01"?"Doğuda Alman işgali":"Cephe hattı (yaklaşık)";
+  const thirdTint=s.date<"1941-06-22"?"#b9bba5":s.date<"1944-01-01"?"#b8ab9e":"#c6b8a1";
   const legend='<rect x="567" y="107" width="168" height="153" rx="4" fill="#e8dcbf" stroke="#928164"/>'+
    '<text x="580" y="133" class="board-heading">POLSKA 1939</text>'+
    '<text x="580" y="153" class="board-small">16 dönem vilayeti</text>'+
@@ -87,7 +89,7 @@ export class PeriodBoard {
    '<text x="580" y="184" class="board-small">İşgal türleri (şematik)</text>'+
    '<rect x="580" y="193" width="10" height="10" fill="#b5a79b"/><text x="596" y="202" class="board-small">Alman ilhakı</text>'+
    '<rect x="580" y="210" width="10" height="10" fill="#cbbd9f"/><text x="596" y="219" class="board-small">Genel Hükümet</text>'+
-   '<rect x="580" y="227" width="10" height="10" fill="#b9bba5"/><text x="596" y="236" class="board-small">SSCB (1940)</text>';
+   '<rect x="580" y="227" width="10" height="10" fill="'+thirdTint+'"/><text x="596" y="236" class="board-small">'+periodLabel+'</text>';
   return root('<text x="26" y="49" class="paper-title">Polonya • işgal yılları</text>'+
    '<text x="26" y="75" class="paper-subtitle">İl seç → yerleşim seç → bina seç</text>'+
    '<g transform="translate(17 53) scale(1.04)" clip-path="url(#poland-1939-clip)">'+provinces+'</g>'+
