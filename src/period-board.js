@@ -86,27 +86,24 @@ export class PeriodBoard {
   return '<a class="board-source" target="_blank" rel="noreferrer" href="'+escape(src.source)+'">'+escape(src.title)+' ('+src.year+') • arşiv kaynağı ↗</a>';
  }
  country(){
-  const src=ARCHIVE.country,s=this.state;
-  let markers="";
-  for(const [id,name,lat,lon] of REGION_DATA.filter(r=>PLAYABLE_REGIONS.includes(r[0]))){
-   const x=COUNTRY_X(lon),y=COUNTRY_Y(lat),value=cnum(s.regions[id]?.influence||0);
-   markers+='<g data-region="'+escape(id)+'" class="atlas-pin" role="button" tabindex="0" aria-label="'+escape(name)+' ilini seç">'+
-    '<circle cx="'+x+'" cy="'+y+'" r="'+(s.selectedRegion===id?12:9)+'" fill="var(--theme)" fill-opacity="'+(s.settings.showInfluence?(0.3+value*.005):.05)+'" stroke="#fff8df" stroke-width="2"/>'+
-    '<circle cx="'+x+'" cy="'+y+'" r="3" fill="#1c2830"/>'+
-    '<title>'+escape(name)+' • örgüt etkisi '+Math.round(value)+'%</title></g>';
-  }
+  const src=ARCHIVE.country;
+  // The scanned 1939 atlas has NOT been georeferenced; placing latitude-derived
+  // dots over pixel positions would invent precision and mislocate regions.
+  const selectors=PLAYABLE_REGIONS.map(id=>
+   '<button class="atlas-site" data-region="'+escape(id)+'">'+escape(places[id][1])+' → '+(id==="warszawskie"?"Warszawa":"Łódź")+'</button>'
+  ).join("");
   return '<div class="atlas-sheet"><svg viewBox="0 0 960 1008" class="atlas-image" role="img" aria-label="1939 tarihli gerçek askerî Polonya ve komşu ülke haritası">'+
-   archivalImg(src,960,1008)+markers+'</svg></div>'+
-   '<div class="atlas-caption"><b>1939 GERÇEK ASKERÎ HARİTA</b> · Komşular harita üzerinde. Bölgeler mevcut tarihsel merkez noktalarından seçilir; imleçler resmî idari poligonlar değildir.'+
-   this.source(src)+'</div>';
+   archivalImg(src,960,1008)+'</svg></div>'+
+   '<div class="atlas-caption"><b>1939 ÖZGÜN ASKERÎ HARİTA</b> · Polonya ve çevre ülkeler. Kaynağı doğrulanmamış yerler açılmaz; arşiv taramasının üzerine uydurma koordinat işaretleri eklenmedi.'+
+   this.source(src)+'</div><div class="atlas-settlement-list">'+selectors+'</div>';
  }
  province(){
-  const data=places[this.region],towns=PLAYABLE_CITIES.filter(t=>COORDINATES[t].region===this.region),src=regionalArchive(this.region);
-  const r=this.state.regions[this.region]||{};
-  return '<div class="atlas-subhead"><button data-back="1">← Polonya</button><b>'+escape(data[1])+'</b><small>WIG • '+src.year+' gerçek askerî coğrafya haritası</small></div>'+
-   '<div class="atlas-province"><img class="atlas-province-image" loading="lazy" decoding="async" data-archive-file="'+escape(src.file)+'" src="'+escape(archiveUrl(src.file))+'" alt="'+escape(src.title)+' tarihsel topoğrafik harita"/></div>'+
+  const data=places[this.region],towns=PLAYABLE_CITIES.filter(t=>COORDINATES[t].region===this.region);
+  const src=ARCHIVE[COORDINATES[towns[0]].archive];
+  return '<div class="atlas-subhead"><button data-back="1">← Polonya</button><b>'+escape(data[1])+'</b><small>'+src.year+' özgün kent planı</small></div>'+
+   '<div class="atlas-province"><img class="atlas-province-image" loading="lazy" decoding="async" data-archive-file="'+escape(src.file)+'" src="'+escape(archiveUrl(src.file))+'" alt="'+escape(src.title)+' tarihsel harita"/></div>'+
    '<div class="atlas-settlement-list">'+towns.map(t=>'<button data-town="'+escape(t)+'">'+escape(t)+'</button>').join("")+'</div>'+
-   '<p class="atlas-note">Bu gerçek WIG tarihsel bölge haritasıdır (1:300.000). 1939 ilçelerinin doğrulanmış poligonları veya kent parselleri değildir. Kaynağa bağlı gerçek konumlar dışında şekil çizilmedi.</p>'+this.source(src);
+   '<p class="atlas-note">Yalnızca kaynakla doğrulanmış binaları olan şehirler açılır. Dönemin özgün kent planı gösterilir; kadastro poligonları doğrulanmadığından üretilmez.</p>'+this.source(src);
  }
  city(){
   const key=atlasKey(this.town),record=key?COORDINATES[key]:null;
