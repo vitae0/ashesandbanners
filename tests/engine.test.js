@@ -112,7 +112,7 @@ test("period atlas lists historical provinces including former eastern Poland",(
 });
 test("archival city map features reference stable names and coordinates, not generated cadastral lots",()=>{
  const a=cityBuildings("warszawskie","Warszawa"),b=cityBuildings("warszawskie","Warszawa");
- assert.equal(a.length,9);
+ assert.equal(a.length,15);
  assert.equal(JSON.stringify(a),JSON.stringify(b));
  for(const site of a){assert.ok(site.osmId.startsWith("archival/"));assert.ok(site.visibility>=0&&site.visibility<=1)}
  assert.ok(a.some(site=>site.allowed.includes("church")));
@@ -144,7 +144,7 @@ test("static board renders without external map libraries or data requests",()=>
  assert.ok(host.innerHTML.includes("Warszawa"));
  board.focusTown("Warszawa");
  assert.equal(game.selectedDistrict,"Warszawa");
- assert.equal((host.innerHTML.match(/data-building=/g)||[]).length,9);
+ assert.equal((host.innerHTML.match(/data-building=/g)||[]).length,15);
  board.back();assert.equal(board.view,"province");
  board.home();assert.equal(board.view,"country");
  assert.ok(callbacks.length>=3);
@@ -155,8 +155,8 @@ test("historical maps are attributed original scans, not hand-drawn shapes",()=>
  assert.ok(ARCHIVE.country.file.endsWith(".jpg"));
  assert.equal(ARCHIVE.warszawa.year,1935);
  assert.equal(ARCHIVE.lodz.year,1938);
- assert.equal(validatedSiteList("Warszawa").length,9);
- assert.equal(validatedSiteList("Łódź").length,5);
+ assert.equal(validatedSiteList("Warszawa").length,15);
+ assert.equal(validatedSiteList("Łódź").length,10);
  assert.ok(!JSON.stringify(ARCHIVE).includes("geoBoundaries"));
 });
 
@@ -172,7 +172,7 @@ test("only two regions with sourced historic buildings are playable",()=>{
 test("no unverified park, plaza, village, or free-form building is accepted",()=>{
  const s=setup();
  const list=cityBuildings("warszawskie","Warszawa");
- assert.equal(verifiedSiteCount(),14);
+ assert.equal(verifiedSiteCount(),25);
  assert.ok(list.every(b=>b.verifiedPrewar&&!b.polygonVerified&&!!b.source&&b.source.startsWith("https://")));
  assert.ok(list.every(b=>!["Rynek Starego Miasta","Łomianki","Park Źródliska","Plac Wolności"].includes(b.name)));
  assert.equal(acquireAsset(s,{osmId:"custom-building",region:"warszawskie",lat:52.2,lon:21}, "safehouse").ok,false);
@@ -207,7 +207,7 @@ test("map never provides clickable places in undocumented regions",()=>{
  assert.equal(board.view,"province");
  board.focusTown("Warszawa","warszawskie");
  assert.ok(!host.innerHTML.includes("ÇEVRE YERLEŞİMLER"));
- assert.equal((host.innerHTML.match(/data-building=/g)||[]).length,9);
+ assert.equal((host.innerHTML.match(/data-building=/g)||[]).length,15);
 });
 
 test("Nozyk Synagogue closure and reopening are strictly tied to historical dates",()=>{
@@ -269,4 +269,29 @@ test("imported v3 saves cannot resurrect forged or closed sites and duplicate ho
  const m=migrateSave(s);
  assert.equal(m.assets.length,1);
  assert.equal(m.assets[0].osmId,b.osmId);
+});
+
+test("new documented homes, hotels, commercial offices, factory and 1910 school are individually sourced",()=>{
+ const w=cityBuildings("warszawskie","Warszawa"),l=cityBuildings("lodzkie","Łódź");
+ assert.equal(w.length,15);assert.equal(l.length,10);
+ for(const id of ["kamienica-grodzickiego","kamienica-camponiego","hotel-europejski","prudential","nowy-swiat-72","bank-polski"]){
+  const site=getVerifiedSite("archival/Warszawa/verified/"+id);assert.ok(site);
+  assert.ok(site.source.startsWith("https://"));assert.ok(site.built);
+ }
+ for(const id of ["palac-heinzla","willa-kindermanna","hotel-savoy","ec1-hala-maszyn","i-lo-kopernika"]){
+  const site=getVerifiedSite("archival/Łódź/verified/"+id);assert.ok(site);
+  assert.ok(site.source.startsWith("https://"));assert.ok(site.built);
+ }
+ const lschool=l.find(x=>x.kind==="school");assert.ok(lschool);
+ const state=setup();assert.equal(acquireAsset(state,lschool,"school").ok,true);
+ const historicalBank=w.find(x=>x.osmId.endsWith("bank-polski"));
+ assert.ok(historicalBank);
+ assert.equal(acquireAsset(state,historicalBank,"historic").ok,false);
+});
+test("a documented residential building gets its own high visibility rate",()=>{
+ const state=setup(),villa=cityBuildings("lodzkie","Łódź").find(x=>x.osmId.endsWith("willa-kindermanna"));
+ assert.ok(villa);
+ assert.ok(villa.visibility>.7);
+ assert.equal(acquireAsset(state,villa,"safehouse").ok,true);
+ assert.ok(state.assets[0].visibility>=70);
 });
