@@ -40,7 +40,7 @@ export class PeriodBoard {
   this.host.addEventListener("click",onActivate);
   this.host.addEventListener("keydown",onActivate);
  }
- mount(s){this.state=s;this.region=s.selectedRegion||"warszawskie";this.town="Warszawa";this.view="country";this.draw()}
+ mount(s){this.state=s;this.region=s.selectedRegion||"warszawskie";this.town="Warszawa";this.view="country";this.lastSignature=null;this.draw()}
  update(s){this.state=s;this.region=s.selectedRegion||this.region;this.draw()}
  home(){this.view="country";this.state.selectedBuilding=null;this.state.selectedDistrict="";this.draw();this.notify(this.state,{type:"home"})}
  back(){this.view=this.view==="town"?"province":"country";this.state.selectedBuilding=null;this.state.selectedDistrict="";this.draw();this.notify(this.state,{type:"back"})}
@@ -58,6 +58,14 @@ export class PeriodBoard {
  level(){return {country:"1939 tarihî atlas",province:"Tarihsel kentler",town:"Arşiv şehir planı"}[this.view]}
  draw(){
   if(!this.state)return;
+  // Avoid reloading large original scans on every simulation frame.
+  const state=this.state,base=[this.view,this.region,this.town,state.selectedRegion,state.selectedDistrict,
+    state.selectedBuilding?.osmId||"",state.settings.showInfluence?"heat":"plain",
+    (state.assets||[]).map(a=>a.osmId).join(",")];
+  if(this.view==="country")base.push(...Object.values(state.regions).map(r=>Math.round(r.influence||0)));
+  const signature=base.join("|");
+  if(signature===this.lastSignature)return;
+  this.lastSignature=signature;
   this.host.innerHTML=this.view==="country"?this.country():this.view==="province"?this.province():this.city();
   // Cache real historical scans locally when available, fallback to Commons.
   for(const el of this.host.querySelectorAll?.("[data-archive-file]")||[]){
