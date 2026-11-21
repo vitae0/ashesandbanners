@@ -1,14 +1,15 @@
 
 /**
- * Source-based border atlas with date-labelled, licensed archival city scans.
+ * Source-based border atlas with date-labelled, traced city-map polygons.
  * Imported 1938 historical borders, approximate 1940 occupation sectors,
- * and individual 1921–39 street plan scans have distinct accuracy grades.
- * Strategic territory is SVG; city plans are true document facsimiles.
+ * and 1921–39 source-traced town polygons have distinct accuracy grades.
+ * All live maps are SVG polygon geometry; no raster maps appear on screen.
  */
 import {REGION_DATA,INSTITUTIONS} from "./engine.js";
 import {cityBuildings} from "./period-board.js";
 import {HISTORICAL_COUNTRIES,HISTORICAL_YEAR} from "./historical-geometry.js";
-import {cityMapRecord,cityMapUrl,cityMapFallback,HISTORICAL_CITY_REFERENCES} from "./historical-city-plans.js";
+import {cityMapRecord,HISTORICAL_CITY_REFERENCES} from "./historical-city-plans.js";
+import {HISTORICAL_CITY_VECTORS} from "./historical-city-vectors.js";
 import {getVerifiedSite,buildingStatusAt} from "./verified-sites.js";
 
 const esc = v => String(v ?? "").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -141,22 +142,46 @@ export function countrySvg(state,selected,camera={x:0,y:0,w:1350,h:780}){
  * Genuine 1930s plan when licensed/downloadable; correctly labelled military
  * regional sheet otherwise. Never paints invented footprints on historical scans.
  */
+/**
+ * This function deliberately renders <polygon> geometry only. Its vertices
+ * come from traced 1921–1939 historical city MAPS, not generated city grids.
+ * Ink polygons are cartographic strokes, NOT verified individual buildings.
+ */
 export function historicalCitySvg(region,name){
- const record=cityMapRecord(region),url=cityMapUrl(region),fallback=cityMapFallback(region);
- const label=record.kind==="city"?"GERÇEK DÖNEM ŞEHİR PLANI":
-  record.kind==="regional"?"WIG BÖLGE HARİTASI · ŞEHİR ÖLÇEĞİNDE DEĞİL":"ŞEHİR PLANI BELGELENMEDİ";
- const header='<g class="v-historical-title"><rect x="9" y="10" width="550" height="39" rx="5" fill="#14252c" opacity=".93"/>'+
+ const record=cityMapRecord(region);
+ const trace=HISTORICAL_CITY_VECTORS[region];
+ const hasContours=Boolean(trace?.layers?.length);
+ const label=hasContours?"TARİHÎ HARİTADAN ÇIKARILMIŞ POLİGONLAR":
+  record.kind==="regional"?"BÖLGE PAFTASI VAR · ŞEHİR POLİGONU YOK":
+  "DOĞRULANMIŞ ŞEHİR POLİGONU YOK";
+ const header='<g class="v-historical-title"><rect x="9" y="10" width="610" height="42" rx="5" fill="#14252c" opacity=".94"/>'+
   '<text x="20" y="27">'+esc(name)+' · '+esc(record.year??"Tarihsiz")+'</text>'+
-  '<text x="20" y="42" class="v-city-subtitle">'+esc(label)+'</text></g>';
- const footer='<text class="v-historical-footer" x="20" y="546">Dönem haritasının görüntüsü · konum işaretleri georeferanslı değildir</text>';
- const drawing=url?
-  '<image class="v-city-archive" x="0" y="0" width="900" height="560" preserveAspectRatio="xMidYMid meet" href="'+esc(url)+'"'+
-  (fallback?' data-fallback="'+esc(fallback)+'"':'')+'/>' :
-  '<g class="v-missing-historical"><rect x="35" y="100" width="830" height="330" rx="12"/>'+
-  '<text x="450" y="225" text-anchor="middle">DOĞRULANMIŞ ŞEHİR HARİTASI BULUNMADI</text>'+
-  '<text x="450" y="257" text-anchor="middle">Bu şehir için sahte sokak ve parseller çizilmiyor.</text></g>';
+  '<text x="20" y="44" class="v-city-subtitle">'+esc(label)+'</text></g>';
+ const footer='<text class="v-historical-footer" x="20" y="546">Kaynak çizgilerinden vektörleştirme · tekil bina ve yollar ayrı doğrulanmadı</text>';
+ let drawing="";
+ if(hasContours){
+  const [ox,oy,w,h]=trace.display;
+  const back=["#e9e0ce","#b6ac97","#77766f"];
+  drawing='<g class="v-city-ink-map" transform="translate('+ox+' '+oy+')" data-vector-year="'+trace.year+'">';
+  for(let layerIndex=0;layerIndex<trace.layers.length;layerIndex++){
+   const {ink,polygons}=trace.layers[layerIndex];
+   const base=back[layerIndex];
+   for(const contour of polygons){
+    if(!contour.p || contour.p.length<3)continue;
+    const pts=contour.p.map(([px,py])=>px+','+py).join(' ');
+    // Retraced ink area (or nested negative space) using native SVG polygons.
+    const fill=contour.d?base:ink;
+    drawing+='<polygon class="v-city-trace" points="'+pts+'" fill="'+fill+'"/>';
+   }
+  }
+  drawing+='</g>';
+ } else {
+  drawing='<g class="v-missing-historical"><rect x="35" y="100" width="830" height="330" rx="12"/>'+
+  '<text x="450" y="225" text-anchor="middle">DOĞRULANMIŞ ŞEHİR POLİGONLARI YOK</text>'+
+  '<text x="450" y="257" text-anchor="middle">Kaynağı olmayan sokaklar ve binalar üretilmiyor.</text></g>';
+ }
  return '<svg class="v-city-scene v-city-overhead v-city-historical" viewBox="0 0 900 560" role="img" aria-label="'+esc(name)+' için '+esc(label)+'">'+
-  '<rect x="0" y="0" width="900" height="560" fill="#d5c5a4"/>'+
+  '<rect x="0" y="0" width="900" height="560" fill="#e9e0ce"/>'+
   drawing+header+footer+'</svg>';
 }
 export class PolygonBoard {
@@ -306,18 +331,7 @@ export class PolygonBoard {
   this.host.innerHTML='<div class="v-map-root '+(showHeat?"show-influence":"no-influence")+'">'+countrySvg(this.state,this.state.selectedRegion,this.camera)+
     '<div class="v-map-watermark">Fare tekerleği: yakınlaştır · sürükle: gezin · azami 4×</div>'+
     (this.view==="town"?this.cityWindow():"")+'</div>';
-  if(this.view==="town"){
-   this.applyCityCamera();
-   // Local copies are preferred. A missing cached image may fall back to the
-   // same explicitly sourced Commons file, but never to generated fake streets.
-   for(const item of this.host.querySelectorAll?.(".v-city-archive[data-fallback]")||[]){
-    item.addEventListener("error",()=>{
-     if(item.dataset.fallback&&item.getAttribute("href")!==item.dataset.fallback){
-      item.setAttribute("href",item.dataset.fallback);
-     }
-    },{once:true});
-   }
-  }
+  if(this.view==="town")this.applyCityCamera();
  }
  cityWindow(){
   const id=this.region,info=regionById[id],record=cityMapRecord(id);
@@ -328,8 +342,10 @@ export class PolygonBoard {
    return '<button type="button" data-building="'+site.index+'" class="v-site '+(rule.claimable?"":"is-locked")+'"><b>'+esc(site.name)+'</b><small>'+
     esc(INSTITUTIONS[site.kind]?.name||site.kind)+' • '+(rule.claimable?"Belgeli yapı: kurum bağlantısı":"Tarihsel erişim kısıtlı")+'</small></button>';
   }).join(""):'<p class="v-symbolic-warning">Bu şehir için oyun içi bina envanteri doğrulanmış değildir. Harita üzerinde uydurma bina/yerleşim işareti yoktur.</p>';
-  const mode=record.kind==="city"?"KAYNAKLI ŞEHİR PLANI":
-   record.kind==="regional"?"SADECE BÖLGE PAFTASI":"ŞEHİR HARİTASI BULUNAMADI";
+  const mode=HISTORICAL_CITY_VECTORS[id]?.layers?.length?
+   "TARİHÎ ŞEHİR PLANI · KAYNAK ÇİZGİLERİNDEN POLİGON":
+   record.kind==="regional"?"BÖLGE PAFTASI KAYNAĞI VAR · ŞEHİR POLİGONU YOK":
+   "DOĞRULANMIŞ ŞEHİR POLİGONU YOK";
   const detail='<div class="v-city-provenance"><b>'+esc(mode)+'</b><p>'+esc(record.notes)+'</p>'+
    (record.source?'<a href="'+esc(record.source)+'" target="_blank" rel="noopener noreferrer">Görüntünün özgün kaynağı ↗</a>':"")+
    (refs?'<p class="v-city-secondary">'+esc(refs.year)+' · '+esc(refs.title)+'<br>'+esc(refs.notes)+'</p>'+
@@ -341,7 +357,7 @@ export class PolygonBoard {
    '<div class="v-city-body"><div class="v-city-art">'+historicalCitySvg(id,this.town)+'</div>'+
    '<div class="v-city-notes"><div class="v-miniheading">TARİHSEL KAYNAK</div>'+detail+
    '<div class="v-miniheading">BELGELİ BİNALAR</div><div class="v-site-scroll">'+list+'</div></div></div>'+
-   '<footer class="v-city-foot"><span>Gerçek dönem haritası / kaynak durumu · yakınlaştırmak için tekerlek veya +/−</span>'+
+   '<footer class="v-city-foot"><span>Tümü SVG poligon · tarama görüntüsü yok · yakınlaştırmak için tekerlek veya +/−</span>'+
    '<div class="v-city-zoom"><button type="button" data-map-zoom=".8" aria-label="Şehirde uzaklaştır">−</button>'+
    '<button type="button" data-map-zoom="1.25" aria-label="Şehirde yakınlaştır">+</button>'+
    '<button type="button" data-map-fit="1">Sıfırla</button>'+
