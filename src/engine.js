@@ -202,7 +202,12 @@ export function acquireAsset(s,building,type){
 }
 export function assetEffects(s,regionId){
  const r=regionOf(s,regionId);
- const list=s.assets.filter(a=>a.region===r.id&&buildingStatusAt(getVerifiedSite(a.osmId),s.date).claimable);
+ const seen=new Set();
+ const list=s.assets.filter(a=>{
+  const site=getVerifiedSite(a.osmId);
+  if(a.region!==r.id||!site||site.region!==a.region||site.type!==a.type||!buildingStatusAt(site,s.date).claimable||seen.has(a.osmId))return false;
+  seen.add(a.osmId);return true;
+ });
  const counts={};
  for(const a of list)counts[a.type]=(counts[a.type]||0)+1;
  const fall=(key,cap,scale=4)=>cap*(1-Math.exp(-(counts[key]||0)/scale));
@@ -334,18 +339,18 @@ function warWeek(s){
  * does not invent a raid or a political event. Other buildings are untouched.
  */
 export function syncHistoricalAssets(s){
- const active=[];
+ const active=[],seen=new Set();
  for(const asset of s.assets){
   const site=getVerifiedSite(asset.osmId),access=buildingStatusAt(site,s.date);
-  if(!site||!access.claimable){
+  if(!site||!access.claimable||site.type!==asset.type||site.region!==asset.region||seen.has(asset.osmId)){
    entry(s,(site?.name||asset.name||"Bilinmeyen yapı")+": kurumsal bağlantı sonlandırıldı. "+access.reason,"story");
-  }else active.push(asset);
+  }else{seen.add(asset.osmId);active.push(asset)}
  }
  s.assets=active;
 }
 function week(s){
  const active=activeCells(s),diff=DIFFICULTIES[s.settings.difficulty];
- const factories=s.assets.filter(a=>a.type==="factory"&&buildingStatusAt(getVerifiedSite(a.osmId),s.date).claimable).length;
+ const factories=[...new Set(s.assets.filter(a=>a.type==="factory"&&buildingStatusAt(getVerifiedSite(a.osmId),s.date).claimable).map(a=>a.osmId))].length;
  // Diminishing returns prevent unlimited resource production by adding buildings.
  const factoryIncome=Math.floor(14*(1-Math.exp(-factories/6)));
  const factorySupply=Math.floor(8*(1-Math.exp(-factories/6)));
@@ -484,9 +489,12 @@ export function migrateSave(old){
  const previousCount=v.cells.length,previousAssets=(v.assets||[]).length;
  v.version=3;
  v.cells=v.cells.filter(c=>PLAYABLE_REGIONS.includes(c.region));
+ const kept=new Set();
  v.assets=(v.assets||[]).filter(a=>{
   const verified=getVerifiedSite(a.osmId);
-  return !!(verified&&verified.region===a.region&&verified.type===a.type&&buildingStatusAt(verified,v.date).claimable);
+  if(!(verified&&verified.region===a.region&&verified.type===a.type&&buildingStatusAt(verified,v.date).claimable)||kept.has(a.osmId))return false;
+  kept.add(a.osmId);
+  return true;
  });
  const cellIDs=new Set(v.cells.map(c=>c.id));
  v.operations=(v.operations||[]).filter(o=>cellIDs.has(o.cell));
