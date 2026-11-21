@@ -38,7 +38,7 @@ export const PATHS = [
 ];
 export const MILESTONES = [
  {id:"founding",name:"Gizli Bölge Konferansı",date:"1940-02-01",requires:"En az 7 hücre, toplam 65 üye, meşruiyet ≥ 35",test:s=>activeCells(s).length>=7&&members(s)>=65&&s.legitimacy>=35,description:"Bölge temsilcileri ortak bir genel merkez kurulmasını müzakere ediyor.",unlock:"Bölgesel komuta sistemi ve siyasi müzakereler açılır."},
- {id:"schools",name:"Yeraltı Toplumsal Ağı",date:"1940-05-01",requires:"Toplam 90 üye ve kaynaklı bir sivil kurum bağlantısı",test:s=>members(s)>=90&&s.assets.some(a=>["school","hospital","church","synagogue","cultural","hotel","factory"].includes(a.type)),description:"Sivil yardım ve eğitim grupları birbirine güvenmeye başlıyor.",unlock:"Yeni sivil dayanışma olayları ve yerel teşkilat kanalları açılır."},
+ {id:"schools",name:"Yeraltı Toplumsal Ağı",date:"1940-05-01",requires:"Toplam 90 üye ve kaynaklı bir sivil kurum bağlantısı",test:s=>members(s)>=90&&s.assets.some(a=>["school","hospital","church","synagogue","cultural","hotel","commercial","factory"].includes(a.type)),description:"Sivil yardım ve eğitim grupları birbirine güvenmeye başlıyor.",unlock:"Yeni sivil dayanışma olayları ve yerel teşkilat kanalları açılır."},
  {id:"council",name:"Siyasi Temsil Konseyi",date:"1941-02-01",requires:"Bölge konferansı, ≥ 95 üye ve meşruiyet ≥ 45",test:s=>s.milestones.includes("founding")&&members(s)>=95&&s.legitimacy>=45,description:"Askerî ve sivil unsurların gelecek yönetimi üzerine anlaşması gerekir.",unlock:"Dört siyasi yolun tarihsel açılış tarihlerine göre adaylaşması mümkün olur."},
  {id:"liaison",name:"Dış Bağlantılar",date:"1941-04-01",requires:"≥ 8 hücre ve ≥ 38 istihbarat",test:s=>activeCells(s).length>=8&&s.intel>=38,description:"Dış merkezlerle sürekli haberleşme kanalları üzerine tartışma.",unlock:"Dış temas olayları ve haberleşme operasyonları açılır."},
  {id:"east",name:"Doğu Cephesinin Açılması",date:"1941-06-22",requires:"Barbarossa başlamış, 1 istihbarat operasyonu başarılı",test:s=>s.war.started&&s.successful.intelligence>=1,description:"Alman-Sovyet savaşı yeraltı politikasının bütün dengelerini değiştirdi.",unlock:"Doğu cephesine ilişkin olaylar ve cephe gerisi harekâtlar açılır."},
@@ -65,6 +65,7 @@ export const INSTITUTIONS = {
  railway:{name:"Ulaştırma bağlantısı",price:72,visibility:.8,help:"Ulaşım istihbaratı, daha yüksek baskın riski."},
  press:{name:"Basın ağı",price:55,visibility:.65,help:"Yeraltı basını ve siyasi meşruiyet."},
  cultural:{name:"Kültürel dayanışma",price:60,visibility:.72,help:"Tiyatro, müze ve bilim kurumları çevresinde sivil ağ. Varsayımsal oynanış etkisi."},
+ commercial:{name:"Ticarî bağlantılar",price:63,visibility:.8,help:"Ticarethane ve ofis çevresi üzerinden sınırlı lojistik ve haberleşme bağlantısı; tarihsel kullanım iddiası değildir."},
  synagogue:{name:"Yahudi toplumu dayanışması",price:65,visibility:.65,help:"Yahudi dinî ve toplumsal çevreleriyle dayanışma; diğer dini kurumlarla aynı aidiyet varsayılmaz."},
  hotel:{name:"Konaklama bağlantısı",price:68,visibility:.86,help:"Otel çevresi üzerinden temsili haberleşme ve lojistik; dikkat çekici bir yapı."},
  historic:{name:"Tarihî yapı (koruma altında)",price:0,visibility:1,help:"Tarihî haritada görülebilir; askerî/siyasi kullanıma açık bir hücre evi değildir."}
@@ -197,7 +198,7 @@ export function acquireAsset(s,building,type){
  const lat=Number(site.lat),lon=Number(site.lon);
  if(!Number.isFinite(lat)||!Number.isFinite(lon)||lat<48||lat>56||lon<14||lon>30)return {ok:false,why:"Harita konumu geçersiz."};
  s.funds-=def.price;
- s.assets.push({id:"a"+(s.assets.length+1),osmId:site.siteId,name:site.name,region:r.id,type,lat,lon,visibility:clamp(def.visibility*100,5,100),source:site.source,polygonVerified:false,raids:0});
+ s.assets.push({id:"a"+(s.assets.length+1),osmId:site.siteId,name:site.name,region:r.id,type,lat,lon,visibility:clamp((site.visibilityOverride??def.visibility)*100,5,100),source:site.source,polygonVerified:false,raids:0});
  entry(s,r.name+": "+def.name+" bağlantısı kuruldu.");return {ok:true};
 }
 export function assetEffects(s,regionId){
@@ -213,10 +214,10 @@ export function assetEffects(s,regionId){
  const fall=(key,cap,scale=4)=>cap*(1-Math.exp(-(counts[key]||0)/scale));
  return {
   support:fall("church",1.6*r.religion,5)+fall("synagogue",.65,4)+fall("cultural",.55,5)+fall("school",.7,4)+fall("hospital",.8,4)+fall("press",.6,4),
-  recruitment:fall("school",1.2,4)+fall("factory",1.1,5)+fall("cultural",.7,5)+fall("safehouse",.8,7),
-  supplies:fall("factory",2.7,5)+fall("railway",1.2,5),
+  recruitment:fall("school",1.2,4)+fall("factory",1.1,5)+fall("cultural",.7,5)+fall("commercial",.3,6)+fall("safehouse",.8,7),
+  supplies:fall("factory",2.7,5)+fall("commercial",.5,5)+fall("railway",1.2,5),
   secrecy:fall("safehouse",7,6)+fall("hotel",1,5)+fall("hospital",1.4,4),
-  intel:fall("railway",2,5)+fall("cultural",.5,5)+fall("hotel",.8,4)+fall("press",.5,5)
+  intel:fall("railway",2,5)+fall("cultural",.5,5)+fall("commercial",.6,5)+fall("hotel",.8,4)+fall("press",.5,5)
  };
 }
 export function institutionRaidRisk(s,a){
