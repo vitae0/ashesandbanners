@@ -26,11 +26,14 @@ test("topbar navigation has the map action and six management modes",()=>{
  assert.match(css,/\.game\.map-only/);
 });
 
-test("political atlas stays vector-only and cities show licensed original archival maps",()=>{
+test("all live political and city maps are vector polygons without image elements",()=>{
  assert.match(html,/vector-ui\.css/);
  assert.doesNotMatch(html,/<img\b/i);
  assert.match(polygon,/historicalCitySvg/);
- assert.match(polygon,/v-city-archive/);
+ assert.match(polygon,/v-city-ink-map/);
+ assert.match(polygon,/historical-city-vectors/);
+ assert.doesNotMatch(polygon,/<image|<img|<foreignObject/i);
+ assert.doesNotMatch(polygon,/cityMapFallback|cityMapUrl/);
  assert.doesNotMatch(polygon,/function cityPortrait|function randomFor|function house/);
  assert.doesNotMatch(polygon,/fetch\(/);
 });
