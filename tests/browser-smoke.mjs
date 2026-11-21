@@ -29,9 +29,16 @@ try{
  await mkdir("browser-artifacts",{recursive:true});
  for(const [region,name,year] of cities){
   const start=Date.now();
-  const marker=page.locator('.v-marker[data-region="'+region+'"]');
-  await marker.click({force:true,timeout:15000});
-  await page.locator(".v-city-window").waitFor({state:"visible",timeout:30000});
+  const marker=page.locator('.v-marker[data-region="'+region+'"] circle.v-hit');
+  console.log("Clicking physical province dot:",region,"position",await marker.boundingBox());
+  await marker.click({timeout:15000});
+  try{
+   await page.locator(".v-city-window").waitFor({state:"visible",timeout:12000});
+  }catch(err){
+   console.error("City click failed",region,"page errors:",errors);
+   console.error("Map after click:",await page.locator("#map").innerHTML().then(x=>x.slice(-1800)));
+   throw err;
+  }
   const polygons=await page.locator(".v-city-ink-map .v-city-trace").count();
   assert.ok(polygons>1000,region+" has no real traced polygons: "+polygons);
   assert.equal(await page.locator(".v-city-window image, .v-city-window img, .v-city-window foreignObject").count(),0,region+" must be raster-free");
@@ -51,7 +58,7 @@ try{
   await page.locator(".v-city-window [data-map-home]").click();
   await page.locator(".v-city-window").waitFor({state:"detached",timeout:10000});
  }
- await page.locator('.v-marker[data-region="poleskie"]').click({force:true});
+ await page.locator('.v-marker[data-region="poleskie"] circle.v-hit').click();
  await page.locator(".v-city-window").waitFor({state:"visible"});
  assert.equal(await page.locator(".v-city-ink-map .v-city-trace").count(),0,"Brześć cannot pretend to have source-derived polygons");
  assert.match(await page.locator(".v-city-window").innerText(),/DOĞRULANMIŞ ŞEHİR POLİGONU YOK/);
