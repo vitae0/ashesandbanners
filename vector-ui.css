@@ -154,26 +154,15 @@ body { background:#101b21; }
 }
 
 
-/* Zoomable political atlas and orthographic roof-plan city views. */
+/* Vector-only geography: no raster city images or fictional buildings. */
 .v-world {touch-action:none;cursor:grab}
 .v-world:active {cursor:grabbing}
 .v-map-root .v-marker,.v-map-root .v-marker:active {cursor:pointer}
 .game #map-zoom-in,.game #map-zoom-out {min-width:28px;font-size:18px;font-weight:700;padding:3px 5px;background:#253743;color:#f4ebd3}
 .game #map-home {font-weight:700}
-.v-city-overhead {width:100%;height:100%;min-height:340px;object-fit:contain;background:#91a58c;image-rendering:auto}
+.v-city-overhead {width:100%;height:100%;min-height:340px;background:#e9e0ce}
 .v-city-art {min-height:360px;align-items:stretch;justify-content:center;overflow:hidden}
-.v-city-overhead .v-building {filter:drop-shadow(1px 2px 1px #33443b48)}
-.v-city-overhead .v-field {stroke-linejoin:bevel}
-.v-city-overhead .v-lot {stroke:#a4a68f;stroke-width:1}
-.v-city-overhead .v-road {stroke:#4c6563;stroke-width:.6}
-.v-city-overhead .v-road-line {stroke:none}
-.v-city-overhead .v-garden {stroke:#7e9a78;stroke-width:1}
-.v-city-overhead .v-map-tiny {font:8px system-ui,sans-serif;fill:#565f4c;letter-spacing:1.2px}
-.v-city-illustration-label {fill:#eee4c9;stroke:none;font:700 12px system-ui,sans-serif;letter-spacing:1px}
-.v-village-label {fill:#263b35;stroke:#d4dcbb;stroke-width:2;paint-order:stroke;font:700 10px system-ui,sans-serif}
 @media(max-width:800px){.v-city-art {min-height:260px}.v-city-overhead{min-height:245px}}
-
-
 .v-city-overhead {touch-action:none;cursor:grab;user-select:none}
 .v-city-overhead:active {cursor:grabbing}
 .v-city-zoom {display:flex;align-items:center;gap:5px}
@@ -182,9 +171,11 @@ body { background:#101b21; }
 @media(max-width:800px){.v-city-foot {flex-wrap:wrap}.v-city-zoom {margin-left:auto}}
 
 
-/* Authentically sourced overhead maps; never draw fictional building footprints. */
-.v-city-historical {background:#d7c8a7;image-rendering:auto}
-.v-city-historical .v-city-archive {pointer-events:auto}
+/* Vectorized cartographic ink from licensed historical sources. */
+.v-city-historical {background:#e9e0ce}
+.v-city-historical .v-city-ink-map {stroke:none}
+.v-city-historical .v-city-trace {shape-rendering:geometricPrecision;stroke:none;pointer-events:none}
+.v-city-historical .v-city-ink-map[hidden] {display:none}
 .v-city-historical .v-historical-title {pointer-events:none}
 .v-city-historical .v-historical-title text {fill:#f5ecdc;font:700 15px system-ui,sans-serif}
 .v-city-historical .v-historical-title .v-city-subtitle {font:10px system-ui,sans-serif;letter-spacing:1px;fill:#dec99e}
