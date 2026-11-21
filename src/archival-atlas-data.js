@@ -26,7 +26,13 @@ export const ARCHIVE={
   rights:"Public domain; Polona / National Library of Poland"
  }
 };
-export const archiveUrl=file=>"https://commons.wikimedia.org/wiki/Special:FilePath/"+encodeURIComponent(file)+"?width=1600";
+export const ARCHIVE_PATH={
+ "Polen 1939.jpg":"assets/maps/polen-1939.jpg",
+ "Warszawa 1935.png":"assets/maps/warszawa-1935.png",
+ "Plan wojewodzkiego miasta Lodzi. ca 1938 (35842453).jpg":"assets/maps/lodz-1938.jpg"
+};
+export const archiveUrl=file=>ARCHIVE_PATH[file]||("https://commons.wikimedia.org/wiki/Special:FilePath/"+encodeURIComponent(file)+"?width=1600");
+export const archiveFallbackUrl=file=>"https://commons.wikimedia.org/wiki/Special:FilePath/"+encodeURIComponent(file)+"?width=1600";
 
 export const COORDINATES={
  // Verified geographic location names, not historical parcel footprints.
