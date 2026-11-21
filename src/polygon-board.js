@@ -292,14 +292,16 @@ export function cityPortrait(region,name){
 export class PolygonBoard {
  constructor(host,onChange){
   this.host=host;this.onChange=onChange;this.state=null;this.view="country";this.region="warszawskie";this.town="Warszawa";this.signature="";
-  this.camera={x:0,y:0,w:1350,h:780};this.drag=null;this.suppressClick=false;
+  this.camera={x:0,y:0,w:1350,h:780};this.cityCamera={x:0,y:0,w:900,h:560};this.drag=null;this.suppressClick=false;
   const activate=e=>{
    if(e.type==="keydown"&&!["Enter"," "].includes(e.key))return;
-   const target=e.target.closest("[data-region],[data-town],[data-building],[data-map-back],[data-map-home]");
+   const target=e.target.closest("[data-region],[data-town],[data-building],[data-map-back],[data-map-home],[data-map-zoom],[data-map-fit]");
    if(!target||!this.state)return;
    if(e.type==="click"&&this.suppressClick){this.suppressClick=false;return}
    if(e.type==="keydown")e.preventDefault();
    if(target.dataset.mapHome!==undefined){this.home();return}
+   if(target.dataset.mapZoom!==undefined){this.zoomActive(Number(target.dataset.mapZoom));return}
+   if(target.dataset.mapFit!==undefined){this.resetCityCamera();return}
    if(target.dataset.mapBack!==undefined){this.home();return}
    if(target.dataset.region){this.focusRegion(target.dataset.region);return}
    if(target.dataset.town){this.focusTown(target.dataset.town,target.dataset.province||this.region);return}
@@ -311,20 +313,25 @@ export class PolygonBoard {
   host.addEventListener("click",activate);
   host.addEventListener("keydown",activate);
   host.addEventListener("wheel",e=>{
-   if(this.view!=="country"||!e.target.closest?.(".v-world"))return;
+   const onWorld=this.view==="country"&&e.target.closest?.(".v-world");
+   const onCity=this.view==="town"&&e.target.closest?.(".v-city-scene");
+   if(!onWorld&&!onCity)return;
    e.preventDefault();
-   this.zoomAt(e.deltaY<0?1.16:1/1.16,e.clientX,e.clientY);
+   if(onWorld)this.zoomAt(e.deltaY<0?1.16:1/1.16,e.clientX,e.clientY);
+   else this.zoomCityAt(e.deltaY<0?1.13:1/1.13,e.clientX,e.clientY);
   },{passive:false});
   host.addEventListener("pointerdown",e=>{
-   if(this.view!=="country"||!e.target.closest?.(".v-world")||e.button!==0)return;
-   this.drag={x:e.clientX,y:e.clientY,moved:0};
+   const world=this.view==="country"&&e.target.closest?.(".v-world");
+   const city=this.view==="town"&&e.target.closest?.(".v-city-scene");
+   if((!world&&!city)||e.button!==0)return;
+   this.drag={x:e.clientX,y:e.clientY,moved:0,kind:city?"city":"world"};
    e.target.setPointerCapture?.(e.pointerId);
   });
   host.addEventListener("pointermove",e=>{
-   if(!this.drag||this.view!=="country")return;
+   if(!this.drag)return;
    const dx=e.clientX-this.drag.x,dy=e.clientY-this.drag.y;
    this.drag.x=e.clientX;this.drag.y=e.clientY;this.drag.moved+=Math.abs(dx)+Math.abs(dy);
-   if(this.drag.moved>6){this.suppressClick=true;this.panBy(dx,dy)}
+   if(this.drag.moved>6){this.suppressClick=true;if(this.drag.kind==="city")this.panCityBy(dx,dy);else this.panBy(dx,dy)}
   });
   const release=()=>{
    this.drag=null;
@@ -332,6 +339,40 @@ export class PolygonBoard {
   };
   host.addEventListener("pointerup",release);
   host.addEventListener("pointercancel",release);
+ }
+ zoomActive(factor){return this.view==="town"?this.zoomCityAt(factor):this.zoomAt(factor)}
+ resetCityCamera(){this.cityCamera={x:0,y:0,w:900,h:560};this.applyCityCamera()}
+ applyCityCamera(){
+  this.host.querySelector?.(".v-city-scene")?.setAttribute("viewBox",
+   [this.cityCamera.x,this.cityCamera.y,this.cityCamera.w,this.cityCamera.h].map(n=>n.toFixed(3)).join(" "));
+ }
+ zoomCityAt(factor,clientX,clientY){
+  if(!this.state)return;
+  const old=this.cityCamera,scale=900/old.w;
+  const next=Math.max(1,Math.min(2.5,scale*factor));
+  if(Math.abs(next-scale)<1e-8)return;
+  let px=old.x+old.w/2,py=old.y+old.h/2;
+  const svg=this.host.querySelector?.(".v-city-scene"),ctm=svg?.getScreenCTM?.();
+  if(ctm&&Number.isFinite(clientX)&&Number.isFinite(clientY)){
+   const p=svg.createSVGPoint();p.x=clientX;p.y=clientY;
+   const pos=p.matrixTransform(ctm.inverse());px=pos.x;py=pos.y;
+  }
+  const w=900/next,h=560/next;
+  this.cityCamera={
+   x:Math.max(0,Math.min(900-w,px-(px-old.x)/old.w*w)),
+   y:Math.max(0,Math.min(560-h,py-(py-old.y)/old.h*h)),w,h
+  };
+  this.applyCityCamera();
+ }
+ panCityBy(dx,dy){
+  const c=this.cityCamera;
+  if(c.w>=900)return;
+  const rect=this.host.querySelector?.(".v-city-scene")?.getBoundingClientRect?.();
+  const scale=rect?Math.min(rect.width/c.w,rect.height/c.h):1;
+  if(!Number.isFinite(scale)||!scale)return;
+  c.x=Math.max(0,Math.min(900-c.w,c.x-dx/scale));
+  c.y=Math.max(0,Math.min(560-c.h,c.y-dy/scale));
+  this.applyCityCamera();
  }
  applyCamera(){
   const svg=this.host.querySelector?.(".v-world");
@@ -378,7 +419,7 @@ export class PolygonBoard {
  focusRegion(id){if(!CAPITALS[id])return;this.focusTown(CAPITALS[id][0],id)}
  focusTown(name,id=this.region){
   if(!CAPITALS[id])return;
-  this.region=id;this.town=name;this.view="town";
+  this.region=id;this.town=name;this.view="town";this.resetCityCamera();
   this.state.selectedRegion=id;this.state.selectedDistrict=name;this.state.selectedBuilding=null;
   this.draw();this.onChange(this.state,{type:"town",name,id});
  }
@@ -411,7 +452,10 @@ export class PolygonBoard {
    '<div class="v-city-notes"><div class="v-miniheading">YERLEŞİM VE YAPILAR</div>'+
    '<p>Kuşbakışı sokak ağı, bina çatıları, parklar, meydanlar, fabrikalar, demiryolu ve çevre köyler ayrı poligonlardan oluşur. Çizim tarihsel kadastro haritası değil, stilize bir şehir planıdır.</p>'+
    '<div class="v-site-scroll">'+list+'</div></div></div>'+
-   '<footer class="v-city-foot"><span>Özgün SVG çizimi · dış görsel yok · yaklaşık coğrafya</span>'+
-   '<button type="button" data-map-home="1">← Stratejik harita</button></footer></section>';
+   '<footer class="v-city-foot"><span>KUŞBAKIŞI · Tekerlek veya +/− ile yakınlaştır, sürükle</span>'+
+   '<div class="v-city-zoom"><button type="button" data-map-zoom=".8" aria-label="Şehirde uzaklaştır">−</button>'+
+   '<button type="button" data-map-zoom="1.25" aria-label="Şehirde yakınlaştır">+</button>'+
+   '<button type="button" data-map-fit="1">Sıfırla</button>'+
+   '<button type="button" data-map-home="1">← Stratejik harita</button></div></footer></section>';
  }
 }
