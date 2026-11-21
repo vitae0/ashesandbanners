@@ -7,7 +7,7 @@ import {
 } from "./engine.js";
 import {ORGANIZATIONS,CONTACTS,currentOrganizations,contactFaction,politicalIdentity,earlyALStatus} from "./politics.js";
 import {PeriodBoard} from "./period-board.js";
-import {PLAYABLE_REGIONS,PLAYABLE_CITIES} from "./verified-sites.js";
+import {PLAYABLE_REGIONS,PLAYABLE_CITIES,getVerifiedSite,buildingStatusAt} from "./verified-sites.js";
 
 const $=id=>document.getElementById(id);
 const esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -61,9 +61,16 @@ function overview(){
  const building=s.selectedBuilding;
  let bcontent='<p class="readout">Yalnızca savaş öncesi varlığı belgelenen binalar seçilebilir. Belgesiz köyler, meydanlar ve diğer şehirlerin bina kayıtları kaldırıldı.</p>';
  if(building){
+  const site=getVerifiedSite(building.osmId),access=buildingStatusAt(site,s.date);
   const claimed=s.assets.some(a=>a.osmId===building.osmId);
-  bcontent='<div class="panel tight"><b>'+esc(building.name)+'</b><p class="smalltext">Tarihsel yer noktası • '+esc(building.osmId)+' • Görünürlük: '+fmt(building.visibility*100)+'%</p>'
-   +(claimed?'<span class="badge good">Ağa katılmış</span>':'<div class="selectrow"><select id="asset-kind">'+building.allowed.map(v=>'<option value="'+v+'">'+esc(INSTITUTIONS[v].name)+' • '+INSTITUTIONS[v].price+' para</option>').join("")+'</select>'+btn("Bağlantı kur","claim")+'</div>')+'</div>';
+  const info='<p class="smalltext">1940 öncesi tarihsel bina • '+esc(building.sourceAddress||"Tarihî adres")+
+   ' • Görünürlük: '+fmt(building.visibility*100)+'%</p>'+
+   (site?'<a class="badge" href="'+esc(site.source)+'" target="_blank" rel="noopener noreferrer">Tarihsel belge ↗</a>':"")+
+   (!access.claimable?'<p class="readout">Bu tarihte kullanılamaz: '+esc(access.reason)+'</p>':"");
+  bcontent='<div class="panel tight"><b>'+esc(building.name)+'</b>'+info+
+   (claimed?'<span class="badge good">Ağa katılmış</span>':access.claimable?
+    '<div class="selectrow"><select id="asset-kind">'+building.allowed.map(v=>'<option value="'+v+'">'+esc(INSTITUTIONS[v]?.name||v)+' • '+fmt(INSTITUTIONS[v]?.price||0)+' para</option>').join("")+
+    '</select>'+btn("Bağlantı kur","claim")+'</div>':'<span class="badge bad">Tarihsel kısıtlama</span>')+'</div>';
  }
  return heading("ÖRGÜT RAPORU","Yeraltı Genel Merkezi","Örgüt devlet değil. Sivil destek, hücreler, gizlilik ve bağlantılarla güçlenirsiniz.")
  +'<div class="grid2">'+metric("Toplam üye",members(s),activeCells(s).length+" hücre")+metric("Ortalama etki",influence(s)+"%","Bölgesel")+metric("Başarılı operasyon",s.records.successful,"Başarısız: "+s.records.failed)+metric("Tutuklanan",s.records.arrests,"Toplam")+'</div>'
