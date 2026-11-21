@@ -258,7 +258,10 @@ const HISTORICAL = [
  ["homearmy","1942-02-14","ZWZ'den Armia Krajowa'ya","Sürgün hükümeti ZWZ adının Armia Krajowa olarak değiştirilmesini ilan etti. Bu, örgüt içi ilişkilerde yeni tartışmalar yaratıyor.",[{name:"Haberleşme ve koordinasyon kur",effect:"london"},{name:"Yerel komuta özerkliğini savun",effect:"officers"}]],
  ["ppr","1942-01-05","Polska Partia Robotnicza kuruldu","PPR şimdi kuruldu. Komünist Gwardia Ludowa 28 Mart 1942'den önce mevcut değildi; 1939'daki GL PPS–WRN ise farklıdır.",[{name:"Diyalog kanalı aç",effect:"left"},{name:"Örgütsel bağımsızlıkta ısrar et",effect:"officers"}]],
  ["gl_ppr","1942-03-28","Gwardia Ludowa (PPR) kuruldu","Komünist PPR'nin Gwardia Ludowa'sı oluştu. 1939'daki PPS–WRN'nin aynı isimli örgütüyle karıştırılmamalı.",[{name:"Sol direnişle görüş",effect:"left"},{name:"Yerel komutayı koru",effect:"officers"}]],
+ ["katyn","1943-04-13","Katyn katliamının duyurulması","1943'te Katyn katliamına ilişkin açıklamalar Polonya-Sovyet ilişkilerini derinden sarsıyor. Bu, siyasi kanatlar arasında güven krizini büyütüyor.",[{name:"Bağımsız inceleme ve açık tartışma iste",effect:"officers"},{name:"İttifak görüşmelerini sürdür",effect:"caution"}]],
+ ["tempest","1944-01-04","Burza (Fırtına) Harekâtı","Kızıl Ordu batı yönünde ilerlerken AK'nin yerel ayaklanmalarla siyasi iradesini gösterme planları tartışılıyor.",[{name:"Yerel siyasi temsil üzerinde dur",effect:"officers"},{name:"Sivil güvenliği önceliklendir",effect:"aid"}]],
  ["al","1944-01-01","Armia Ludowa'nın kuruluşu","Gwardia Ludowa, Armia Ludowa adı altında yeniden örgütleniyor. Dört yol ancak alternatif tarih siyasetinde birer seçim olabilir.",[{name:"Sol direnişle görüş",effect:"left"},{name:"Mevcut bağları koru",effect:"caution"}]],
+ ["pkw","1944-07-22","PKWN ilanı","Sovyet desteğiyle Polonya Ulusal Kurtuluş Komitesi ilan edildi. Londra'ya bağlı çevrelerle Sovyet yanlısı örgütlerin siyasi gerilimi keskinleşiyor.",[{name:"Sovyet yanlısı temsilcilerle görüş",effect:"left"},{name:"Londra ile bağı koru",effect:"london"}]],
  ["uprising1944","1944-08-01","Varşova Ayaklanması","Varşova'da büyük ayaklanma başladı. Oyunun alternatif tarihi bu olayı ve sonuçlarını değiştirebilir.",[{name:"Sivil halkı korumayı önceliklendir",effect:"aid"},{name:"Siyasi temsil konseyini topla",effect:"officers"}]]
 ];
 function applyEffect(s,e){
@@ -286,7 +289,7 @@ export function answerEvent(s,index){
 }
 function eventCheck(s){
  if(s.pendingEvent||s.status!=="running")return;
- for(const [id,date,title,text,choices] of HISTORICAL){
+ for(const [id,date,title,text,choices] of [...HISTORICAL].sort((a,b)=>a[1].localeCompare(b[1]))){
   if(after(s,date)&&!s.eventsSeen.includes(id)){
    s.pendingEvent={id,title,text,choices};return;
   }
@@ -313,9 +316,16 @@ function warWeek(s){
 }
 function week(s){
  const active=activeCells(s),diff=DIFFICULTIES[s.settings.difficulty];
- const income=Math.floor(9+active.length*1.7+s.assets.filter(a=>a.type==="factory").length*2);
- s.funds+=income;
- s.supplies=clamp(s.supplies+2+s.assets.filter(a=>a.type==="factory").length,0,1000);
+ const factories=s.assets.filter(a=>a.type==="factory").length;
+ // Diminishing returns prevent unlimited resource production by adding buildings.
+ const factoryIncome=Math.floor(14*(1-Math.exp(-factories/6)));
+ const factorySupply=Math.floor(8*(1-Math.exp(-factories/6)));
+ s.funds+=Math.floor(9+active.length*1.7)+factoryIncome;
+ s.supplies=clamp(s.supplies+2+factorySupply,0,1000);
+ if(s.politics.path==="ak_london"){s.funds+=3;s.intel=clamp(s.intel+2);}
+ if(s.politics.path==="ak_independent"){s.morale=clamp(s.morale+1);}
+ if(s.politics.path==="al_independent"){s.legitimacy=clamp(s.legitimacy+.3);}
+ if(s.politics.path==="al_soviet"){s.supplies=clamp(s.supplies+2,0,1000);s.intel=clamp(s.intel+1);}
  s.intel=clamp(s.intel-1,0,100);
  s.alert=clamp(s.alert-1);
  let support=0;
@@ -328,6 +338,19 @@ function week(s){
   support+=r.support;
  }
  s.legitimacy=clamp(s.legitimacy+(support/Object.keys(s.regions).length-28)*.011);
+ // Occupation authorities periodically uncover institutions. Visibility has real effects.
+ for(const a of [...s.assets]){
+  const r=regionOf(s,a.region);
+  const raidChance=(.001+.000075*a.visibility+.000035*r.heat)*diff.risk*CENT_LEVELS[s.centralization-1].exposure;
+  if(rand(s)<raidChance){
+    a.raids=(a.raids||0)+1;r.heat=clamp(r.heat+5);s.alert=clamp(s.alert+3);
+    for(const c of active.filter(c=>c.region===r.id))c.exposure=clamp(c.exposure+4);
+    if(rand(s)<.35){
+      s.assets=s.assets.filter(x=>x.id!==a.id);
+      entry(s,r.name+": "+INSTITUTIONS[a.type].name+" bağlantısı baskında kaybedildi.","danger");
+    }else entry(s,r.name+": "+INSTITUTIONS[a.type].name+" bağlantısına yönelik baskın atlatıldı.","danger");
+  }
+ }
  for(const c of active){
   c.fatigue=clamp(c.fatigue-5);
   c.exposure=clamp(c.exposure-3+Math.max(0,regionOf(s,c.region).heat-50)*.06);
