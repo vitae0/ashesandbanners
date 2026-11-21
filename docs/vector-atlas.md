@@ -27,7 +27,7 @@ The **January 1940 occupation overlays** (Germany-annexed west, General Governme
 - Drag with primary pointer (including touch): pan inside the map.
 - Toolbar `+` and `−`: zoom with increment factor 1.25.
 - `⤢ Tümü`: reset zoom/pan and return to strategic view.
-- Camera is clamped from **1× to 4×**; it cannot leave the map canvas.
+- Strategic camera is clamped from **1× to 4×**; it cannot leave the map canvas. The city window has its own independent **1× to 2.5×** zoom, drag-pan and reset buttons.
 - Region markers are still selectable by click, Enter and Space. The camera state remains when switching panels.
 
 ## Orthographic city maps
