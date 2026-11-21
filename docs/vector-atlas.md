@@ -1,34 +1,41 @@
-# Vector atlas and city scenes
+# Historical Vector Geography, Zoom and City Plans
 
-## Scope
+## Sources and rights
 
-This project deliberately uses an **illustrated** 1939/1940 map instead of a scanned map, tiled basemap, or an external drawing service. The active gameplay path is `index.html` → `src/app.js` → `src/polygon-board.js`, styled by `vector-ui.css`. `src/period-board.js` remains only for the existing site-to-city conversion function `cityBuildings`; it never mounts the old raster atlas. No live map view requests an online image.
+The live country layer uses geographical polygons from **Cliopatria (Seshat Global History Databank)**, accessed from `https://github.com/Seshat-Global-History-Databank/cliopatria`. The data are offered under **CC BY 4.0** and are credited here and in the generated module. Citation: Bennett, J. S., Mutch, E., Tollefson, A., et al. (2025), *Cliopatria: A geospatial database of world-wide political entities from 3400 BCE to 2024 CE*, *Scientific Data* 12, 247. DOI: https://doi.org/10.1038/s41597-025-04516-9.
 
-## Two historical layers, different dates
+`scripts/build-historical-geometry.py` extracts **1938** polygon rows for the Second Polish Republic and surrounding states and clips them to a Central-European bounding box. The script simplifies line geometry to roughly **0.014 geographic degrees** using Shapely in CI. `.github/workflows/historical-geometry.yml` bundles the generated `src/historical-geometry.js` locally. The web app has **no runtime dependence on geographic services, image files or map tiles**.
 
-- Thick golden line: schematic border of the **Second Polish Republic in 1939, before partition**.
-- Colored zones: **approximate January 1940 occupation reference** clipped to that prewar outline; German annexations, the *Generalgouvernement*, and Soviet-occupied eastern territories.
-- Surrounding approximate country silhouettes include Germany, East Prussia, Free City of Danzig, Lithuania, Latvia, USSR, Romania, Hungary, Slovakia and the Protectorate of Bohemia and Moravia, plus wider-context states.
-- Dashed thin lines inside Poland are **schematic voivodeship dividers**, not faithful historical administrative boundaries. Sixteen clickable markers use historical voivodeship central cities and approximate coordinates.
+This dataset is a published historical reconstruction, **not an exact official September 1939 survey**. We use 1938 boundaries because they are close to the start-of-war layout while freely redistributable. Corrections made during 1938 and early 1939 and small border enclaves may be absent. Some neighboring polities are smoothed more strongly in the upstream dataset. Never claim this is an exact cadastral or treaty-line copy.
 
-The 1940 occupation overlay is a **fixed reference layer**. It does not automatically update to the 1941–1945 front changes; it must **not** be read as a real-time sovereignty map. Borders, coastline, the Danzig corridor, Eastern Prussia and interwar Polish eastern possessions are generalized to reduce geometry complexity. Historical details such as border settlements, Lithuanian control of Vilnius and wartime administrative changes are not depicted with cadastral accuracy. Do not use this atlas for historical boundary-area calculations.
+Useful external comparisons, **not incorporated or redistributed**:
+- *Rzeczpospolita Polska, Mapa administracyjna, 1 April 1939*, Polish Central Statistical Office, public-domain scan via https://maproom.geshergalicia.org/galicia/poland-interwar-1939-1/
+- Polish Institute of National Remembrance, *The Occupation of Poland from 1939 to 1941*, which distinguishes annexed zones, General Government and Soviet territories: https://eng.ipn.gov.pl/download/2/49758/WalczacaRzeczpospolitaEN.pdf
+- *Poland (1938) location map with voivodeships.svg*, author Obivan Kenobi, CC BY-SA 4.0: https://commons.wikimedia.org/wiki/File:Poland_(1938)_location_map_with_voivodeships.svg (reference only, not copied).
 
-## City panel
+The University of Minnesota **1939 national border service was not incorporated**, because its documented terms restrict redistribution or commercial products without additional permission.
 
-Click a province marker to open a city window with a deterministic, hand-coded SVG illustration. Every façade, roof, window, church, chimney, road, field, river and village building is a polygon or line; there are no external images or background maps.
+## Geographic layers and accuracy
 
-Scene styles change according to urban/historic/industrial/rural characteristics. Three rural labels use *KÖY 1–3* on purpose. They are **not** claims about individual real villages. Their single house stands for one abstract settlement. The buildings do not correspond to actual coordinates or 1940 cadastral geometry.
+The polygon geometry from `HISTORICAL_COUNTRIES` supplies the visible national outline, coastline and surrounding state shapes. The **strong gold Polish frontier** follows the geographic Polish polygon where available. The hand-written fallback polygon is retained only as protection if the data build has not been run.
 
-Warsaw and Łódź offer separate links to the existing individual historically documented buildings, including their real source references and temporal access restrictions. All other province views are **visual only**. Merely drawing a building does not add a recruitable institution to the simulation.
+The **January 1940 occupation overlays** (Germany-annexed west, General Government, Soviet-occupied east) remain lower-fidelity schematic shapes, clipped within the source-based Polish outline. The fixed internal voivodeship guides are *schematic*. These are different temporal and accuracy levels and are not suited for territorial statistics or legal/administrative boundary analysis. The 1940 reference does **not** automatically evolve with wartime gameplay.
 
-## UI
+## Pan / zoom interaction
 
-The command navigation is at the top. General HQ, network and operations use a narrow panel on the left. Politics, milestones, war, log and settings use expanded central views. The Map button collapses the left panel, displaying the atlas at full available width. Repeat-clicking a current command tab returns to the map. The layout compresses to a vertical map/panel arrangement at small viewports.
+- Wheel up/down: magnify or reduce the strategy map about the cursor.
+- Drag with primary pointer (including touch): pan inside the map.
+- Toolbar `+` and `−`: zoom with increment factor 1.25.
+- `⤢ Tümü`: reset zoom/pan and return to strategic view.
+- Camera is clamped from **1× to 4×**; it cannot leave the map canvas.
+- Region markers are still selectable by click, Enter and Space. The camera state remains when switching panels.
 
-## Verification
+## Orthographic city maps
 
-Run `npm test`. `tests/polygon-board.test.js` checks that all sixteen provinces have markers and interactive city scenes, the polygonized atlas has no image dependencies, output is deterministic, and that only historically whitelisted Warsaw/Łódź buildings get action records.
+Cities **no longer show perspective cityscapes**. Clicking any one of the 16 voivodeship centres opens a top-down SVG map with streets, cadastral-*style* blocks, road intersections, colored roof footprint polygons, industrial lots, railway, plazas, green spaces and peripheral villages. Roofs are deliberately top-down: no building facades, horizons or sky gradients.
 
-## Why archival references still exist
+**Caution:** city street networks and symbolic rooftops are **procedural game graphics**, not precise 1939 street surveys. The villages named `KÖY 1–3` are symbolic and not verified individual settlements. Verified 1940-era buildings in Warsaw (15) and Łódź (10) are separately listed and preserve source links and eligibility rules. Other city portraits do not enable undocumented building actions.
 
-`assets/maps`, `docs/cartographic-sources.md`, and the old research modules record the previous archival-map implementation. They are not loaded by the new atlas. This preserves provenance for future research without violating the current all-polygon visual requirement.
+## Tests
+
+Run `npm test` in the repository. Tests check source-derived national geometry and licensing notice, 16 selectable region/city windows, deterministic top-down building layers, no runtime image references, bounded camera zoom and preserved historic building whitelist.
