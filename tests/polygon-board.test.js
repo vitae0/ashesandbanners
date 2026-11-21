@@ -4,6 +4,7 @@ import {createGame,REGION_DATA} from "../src/engine.js";
 import {cityBuildings} from "../src/period-board.js";
 import {POLAND_1939,SECTORS,CAPITALS,countrySvg,historicalCitySvg,PolygonBoard} from "../src/polygon-board.js";
 import {HISTORICAL_COUNTRIES} from "../src/historical-geometry.js";
+import {HISTORICAL_CITY_VECTORS} from "../src/historical-city-vectors.js";
 import {CITY_PLANS,HISTORICAL_CITY_REFERENCES,VERIFIED_SHEET_REGIONS,cityMapRecord,cityMapUrl} from "../src/historical-city-plans.js";
 
 const state=()=>createGame({seed:1940});
@@ -43,7 +44,14 @@ test("Warsaw, Łódź, Katowice, Lwów and Toruń use named original street-plan
   assert.equal(record.year,year);
   assert.ok(record.source.startsWith("https://commons.wikimedia.org/wiki/File:"),id);
   assert.ok(record.local.startsWith("assets/maps/"),id);
-  assert.match(historicalCitySvg(id,CAPITALS[id][0]),/class="v-city-archive"/);
+  const trace=HISTORICAL_CITY_VECTORS[id];
+  assert.ok(trace, id);
+  assert.equal(trace.year,year);
+  assert.ok(trace.layers.reduce((n,layer)=>n+layer.polygons.length,0)>=1000);
+  const svg=historicalCitySvg(id,CAPITALS[id][0]);
+  assert.match(svg,/v-city-ink-map/);
+  assert.match(svg,/<polygon class="v-city-trace"/);
+  assert.doesNotMatch(svg,/<(?:image|img|foreignObject)\\b/i);
  }
 });
 
@@ -53,16 +61,22 @@ test("unsupported city layouts never generate imaginary roads, houses or village
   const map=historicalCitySvg(id,name);
   assert.match(map,/<svg[\s\S]*<\/svg>/);
   assert.match(map,/v-city-historical/);
+  assert.doesNotMatch(map,/<(?:image|img|foreignObject)\\b/i);
   assert.doesNotMatch(map,/v-road|v-building|v-roof-plane|v-field|v-village-label/);
+  if(record.kind==="city"){
+   assert.ok((map.match(/class="v-city-trace"/g)||[]).length>=1000,id);
+   assert.match(map,/TARİHÎ HARİTADAN ÇIKARILMIŞ POLİGONLAR/);
+  }
   if(record.kind==="unavailable"){
    assert.equal(cityMapUrl(id),null);
-   assert.doesNotMatch(map,/<image\b/);
-   assert.match(map,/DOĞRULANMIŞ ŞEHİR HARİTASI BULUNMADI/);
+   assert.doesNotMatch(map,/<polygon class="v-city-trace"/);
+   assert.match(map,/DOĞRULANMIŞ ŞEHİR POLİGONLARI YOK/);
   }
   if(record.kind==="regional"){
    assert.ok(VERIFIED_SHEET_REGIONS.includes(id));
    assert.match(record.notes,/1:300.000/);
-   assert.match(map,/WIG BÖLGE HARİTASI/);
+   assert.match(map,/BÖLGE PAFTASI VAR/);
+   assert.doesNotMatch(map,/<polygon class="v-city-trace"/);
   }
  }
  assert.equal(cityMapRecord("poleskie").kind,"unavailable");
@@ -84,7 +98,7 @@ test("16 cities all open source-labelled periods or honest missing-plan view",()
   assert.match(host.innerHTML,/TARİHSEL KAYNAK/);
   assert.doesNotMatch(host.innerHTML,/KUŞBAKIŞI ŞEHİR PLANI · TEMSİLÎ/);
   if(cityMapRecord(id).kind==="unavailable")
-    assert.match(host.innerHTML,/ŞEHİR HARİTASI BULUNAMADI/);
+    assert.match(host.innerHTML,/DOĞRULANMIŞ ŞEHİR POLİGONU YOK/);
   board.home();
   assert.equal(board.view,"country");
  }
@@ -110,7 +124,7 @@ test("historical maps preserve the geographic pan-zoom limit 4x",()=>{
  assert.equal(board.camera.x,0);
 });
 
-test("historical city scan camera supports zoom 2.5x and reset",()=>{
+test("source-traced polygon city camera supports zoom 2.5x and reset",()=>{
  const s=state(),host={innerHTML:"",addEventListener(){}};
  const board=new PolygonBoard(host,()=>{});
  board.mount(s);
@@ -125,4 +139,20 @@ test("historical city scan camera supports zoom 2.5x and reset",()=>{
  assert.deepEqual(board.cityCamera,{x:0,y:0,w:900,h:560});
  assert.match(host.innerHTML,/data-map-zoom="1.25"/);
  assert.match(host.innerHTML,/data-map-fit="1"/);
+});
+
+test("source geometries contain valid integer polygon rings, not embedded bitmap payloads",()=>{
+ const original = Object.entries(HISTORICAL_CITY_VECTORS);
+ assert.equal(original.length,5);
+ for(const [region,v] of original){
+  assert.equal(v.layers.length,3);
+  assert.ok(v.sourceSize[0]>400&&v.sourceSize[1]>400,region);
+  for(const layer of v.layers){
+   assert.match(layer.ink,/^#[a-fA-F0-9]{6}$/);
+   for(const item of layer.polygons.slice(0,100)){
+    assert.ok(item.p.length>=3,region);
+    assert.ok(item.p.every(([x,y])=>Number.isInteger(x)&&Number.isInteger(y)&&x>=0&&y>=0),region);
+   }
+  }
+ }
 });
