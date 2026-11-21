@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {
  createGame,advanceDays,after,activeCells,members,MILESTONES,PATHS,
  canMilestone,approveMilestone,pathAvailable,setPath,scheduleOperation,bestCell,
- assetEffects,INSTITUTIONS,regroup,validateSave,setCentralization,assignCommander
+ assetEffects,INSTITUTIONS,institutionRaidRisk,regroup,validateSave,setCentralization,assignCommander
 } from "../src/engine.js";
 import {currentOrganizations,contactFaction,politicalIdentity,earlyALStatus} from "../src/politics.js";
 const setup=(x={})=>createGame({seed:123456,...x});
@@ -64,6 +64,15 @@ test("church institution boosts are bounded by diminishing returns",()=>{
  for(let i=0;i<100;i++)s.assets.push({id:"a"+i,osmId:"way/"+i,region:r,type:"church",visibility:60});
  const full=assetEffects(s,r).support;
  assert.ok(full>base);assert.ok(full<2);
+});
+test("more visible institutions face higher raid risk",()=>{
+ const state=setup();
+ const base={id:"a",region:"mazowieckie",visibility:10,type:"safehouse"};
+ const low=institutionRaidRisk(state,base);
+ const high=institutionRaidRisk(state,{...base,visibility:90});
+ assert.ok(high>low);
+ state.centralization=5;
+ assert.ok(institutionRaidRisk(state,{...base,visibility:90})>high);
 });
 test("cells can be dispatched automatically to suitable work",()=>{
  const s=setup();const c=bestCell(s,"intelligence");assert.ok(c);
