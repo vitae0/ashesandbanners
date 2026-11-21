@@ -1,0 +1,44 @@
+name: Chromium Polygon City Smoke Test
+on:
+  push:
+    branches: [main]
+    paths:
+      - tests/browser-smoke.mjs
+      - .github/workflows/browser-smoke.yml
+      - src/polygon-board.js
+      - src/historical-city-vectors.js
+      - src/city-buildings.js
+      - vector-ui.css
+      - index.html
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  real-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Chromium browser testing dependencies
+        run: |
+          npm install --no-save --package-lock=false playwright
+          npx playwright install --with-deps chromium
+      - name: Open the game in a real browser, zoom and inspect polygons
+        run: |
+          python3 -m http.server 8080 --bind 127.0.0.1 > /tmp/ashes-browser-http.log 2>&1 &
+          for i in $(seq 1 20); do
+            if curl -fsS http://127.0.0.1:8080/ >/dev/null; then break; fi
+            sleep 1
+          done
+          node tests/browser-smoke.mjs
+      - name: Keep actual browser captures as test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ash-banners-city-vector-browser-captures
+          path: browser-artifacts/
+          if-no-files-found: ignore
+          retention-days: 7
