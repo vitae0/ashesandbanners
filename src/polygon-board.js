@@ -8,6 +8,7 @@
 import {REGION_DATA,INSTITUTIONS} from "./engine.js";
 import {cityBuildings} from "./period-board.js";
 import {HISTORICAL_COUNTRIES,HISTORICAL_YEAR} from "./historical-geometry.js";
+import {cityMapRecord,cityMapUrl,cityMapFallback,HISTORICAL_CITY_REFERENCES} from "./historical-city-plans.js";
 import {getVerifiedSite,buildingStatusAt} from "./verified-sites.js";
 
 const esc = v => String(v ?? "").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -289,6 +290,28 @@ export function cityPortrait(region,name){
  '</svg>';
  return art;
 }
+/**
+ * Genuine 1930s plan when licensed/downloadable; correctly labelled military
+ * regional sheet otherwise. Never paints invented footprints on historical scans.
+ */
+export function historicalCitySvg(region,name){
+ const record=cityMapRecord(region),url=cityMapUrl(region),fallback=cityMapFallback(region);
+ const label=record.kind==="city"?"GERÇEK DÖNEM ŞEHİR PLANI":
+  record.kind==="regional"?"WIG BÖLGE HARİTASI · ŞEHİR ÖLÇEĞİNDE DEĞİL":"ŞEHİR PLANI BELGELENMEDİ";
+ const header='<g class="v-historical-title"><rect x="9" y="10" width="550" height="39" rx="5" fill="#14252c" opacity=".93"/>'+
+  '<text x="20" y="27">'+esc(name)+' · '+esc(record.year??"Tarihsiz")+'</text>'+
+  '<text x="20" y="42" class="v-city-subtitle">'+esc(label)+'</text></g>';
+ const footer='<text class="v-historical-footer" x="20" y="546">Dönem haritasının görüntüsü · konum işaretleri georeferanslı değildir</text>';
+ const drawing=url?
+  '<image class="v-city-archive" x="0" y="0" width="900" height="560" preserveAspectRatio="xMidYMid meet" href="'+esc(url)+'"'+
+  (fallback?' data-fallback="'+esc(fallback)+'"':'')+'/>' :
+  '<g class="v-missing-historical"><rect x="35" y="100" width="830" height="330" rx="12"/>'+
+  '<text x="450" y="225" text-anchor="middle">DOĞRULANMIŞ ŞEHİR HARİTASI BULUNMADI</text>'+
+  '<text x="450" y="257" text-anchor="middle">Bu şehir için sahte sokak ve parseller çizilmiyor.</text></g>';
+ return '<svg class="v-city-scene v-city-overhead v-city-historical" viewBox="0 0 900 560" role="img" aria-label="'+esc(name)+' için '+esc(label)+'">'+
+  '<rect x="0" y="0" width="900" height="560" fill="#d5c5a4"/>'+
+  drawing+header+footer+'</svg>';
+}
 export class PolygonBoard {
  constructor(host,onChange){
   this.host=host;this.onChange=onChange;this.state=null;this.view="country";this.region="warszawskie";this.town="Warszawa";this.signature="";
@@ -436,24 +459,42 @@ export class PolygonBoard {
   this.host.innerHTML='<div class="v-map-root '+(showHeat?"show-influence":"no-influence")+'">'+countrySvg(this.state,this.state.selectedRegion,this.camera)+
     '<div class="v-map-watermark">Fare tekerleği: yakınlaştır · sürükle: gezin · azami 4×</div>'+
     (this.view==="town"?this.cityWindow():"")+'</div>';
-  if(this.view==="town")this.applyCityCamera();
+  if(this.view==="town"){
+   this.applyCityCamera();
+   // Local copies are preferred. A missing cached image may fall back to the
+   // same explicitly sourced Commons file, but never to generated fake streets.
+   for(const item of this.host.querySelectorAll?.(".v-city-archive[data-fallback]")||[]){
+    item.addEventListener("error",()=>{
+     if(item.dataset.fallback&&item.getAttribute("href")!==item.dataset.fallback){
+      item.setAttribute("href",item.dataset.fallback);
+     }
+    },{once:true});
+   }
+  }
  }
  cityWindow(){
-  const id=this.region,cap=CAPITALS[id],info=regionById[id];
+  const id=this.region,info=regionById[id],record=cityMapRecord(id);
+  const refs=HISTORICAL_CITY_REFERENCES[id];
   const sites=cityBuildings(id,this.town);
   const list=sites.length?sites.map(site=>{
-   const i=site.index,rule=buildingStatusAt(getVerifiedSite(site.osmId),this.state.date);
-   return '<button type="button" data-building="'+i+'" class="v-site '+(rule.claimable?"":"is-locked")+'"><b>'+esc(site.name)+'</b><small>'+
-    esc(INSTITUTIONS[site.kind]?.name||site.kind)+' • '+(rule.claimable?"Belgelendi / oyun etkileşimi açık":"Tarihsel erişim kısıtlı")+'</small></button>';
-  }).join(""):'<p class="v-symbolic-warning">Bu ildeki bina ve köy şekilleri temsili görselleştirmedir. Doğrulanmış tekil bina verisi bulunmadığından bina etkileşimi kapalıdır.</p>';
-  return '<div class="v-city-backdrop" data-map-back="1"></div><section class="v-city-window" role="dialog" aria-label="'+esc(this.town)+' şehir görünümü">'+
-   '<header class="v-city-head"><div><small>1939 / İL MERKEZİ · '+esc(info?.[1]||id)+'</small><h2>'+esc(this.town)+'</h2></div>'+
+   const rule=buildingStatusAt(getVerifiedSite(site.osmId),this.state.date);
+   return '<button type="button" data-building="'+site.index+'" class="v-site '+(rule.claimable?"":"is-locked")+'"><b>'+esc(site.name)+'</b><small>'+
+    esc(INSTITUTIONS[site.kind]?.name||site.kind)+' • '+(rule.claimable?"Belgeli yapı: kurum bağlantısı":"Tarihsel erişim kısıtlı")+'</small></button>';
+  }).join(""):'<p class="v-symbolic-warning">Bu şehir için oyun içi bina envanteri doğrulanmış değildir. Harita üzerinde uydurma bina/yerleşim işareti yoktur.</p>';
+  const mode=record.kind==="city"?"KAYNAKLI ŞEHİR PLANI":
+   record.kind==="regional"?"SADECE BÖLGE PAFTASI":"ŞEHİR HARİTASI BULUNAMADI";
+  const detail='<div class="v-city-provenance"><b>'+esc(mode)+'</b><p>'+esc(record.notes)+'</p>'+
+   (record.source?'<a href="'+esc(record.source)+'" target="_blank" rel="noopener noreferrer">Görüntünün özgün kaynağı ↗</a>':"")+
+   (refs?'<p class="v-city-secondary">'+esc(refs.year)+' · '+esc(refs.title)+'<br>'+esc(refs.notes)+'</p>'+
+    '<a href="'+esc(refs.source)+'" target="_blank" rel="noopener noreferrer">Alternatif tarihî belge ↗</a>':"")+
+   '</div>';
+  return '<div class="v-city-backdrop" data-map-back="1"></div><section class="v-city-window" role="dialog" aria-label="'+esc(this.town)+' tarihî kuşbakışı şehir haritası">'+
+   '<header class="v-city-head"><div><small>'+esc(record.year||"Yıl doğrulanmadı")+' / '+esc(mode)+' · '+esc(info?.[1]||id)+'</small><h2>'+esc(this.town)+'</h2></div>'+
    '<button type="button" data-map-back="1" aria-label="Şehri kapat">✕ <span>Kapat</span></button></header>'+
-   '<div class="v-city-body"><div class="v-city-art">'+cityPortrait(id,this.town)+'</div>'+
-   '<div class="v-city-notes"><div class="v-miniheading">YERLEŞİM VE YAPILAR</div>'+
-   '<p>Kuşbakışı sokak ağı, bina çatıları, parklar, meydanlar, fabrikalar, demiryolu ve çevre köyler ayrı poligonlardan oluşur. Çizim tarihsel kadastro haritası değil, stilize bir şehir planıdır.</p>'+
-   '<div class="v-site-scroll">'+list+'</div></div></div>'+
-   '<footer class="v-city-foot"><span>KUŞBAKIŞI · Tekerlek veya +/− ile yakınlaştır, sürükle</span>'+
+   '<div class="v-city-body"><div class="v-city-art">'+historicalCitySvg(id,this.town)+'</div>'+
+   '<div class="v-city-notes"><div class="v-miniheading">TARİHSEL KAYNAK</div>'+detail+
+   '<div class="v-miniheading">BELGELİ BİNALAR</div><div class="v-site-scroll">'+list+'</div></div></div>'+
+   '<footer class="v-city-foot"><span>Gerçek dönem haritası / kaynak durumu · yakınlaştırmak için tekerlek veya +/−</span>'+
    '<div class="v-city-zoom"><button type="button" data-map-zoom=".8" aria-label="Şehirde uzaklaştır">−</button>'+
    '<button type="button" data-map-zoom="1.25" aria-label="Şehirde yakınlaştır">+</button>'+
    '<button type="button" data-map-fit="1">Sıfırla</button>'+
