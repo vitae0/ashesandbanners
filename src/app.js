@@ -225,8 +225,8 @@ function bind(){
  $("time-speed").addEventListener("change",e=>{if(s){s.settings.speed=+e.target.value;save()}});
  $("save-game").addEventListener("click",()=>{save();notify("Kaydedildi.")});
  $("map-home").addEventListener("click",()=>{if(map)map.home()});
- $("map-zoom-in").addEventListener("click",()=>map?.zoomAt(1.25));
- $("map-zoom-out").addEventListener("click",()=>map?.zoomAt(1/1.25));
+ $("map-zoom-in").addEventListener("click",()=>map?.zoomActive(1.25));
+ $("map-zoom-out").addEventListener("click",()=>map?.zoomActive(1/1.25));
  $("map-city").addEventListener("click",()=>{if(map)map.focusCapital()});
  $("map-layer").addEventListener("click",()=>{if(s){s.settings.showInfluence=!s.settings.showInfluence;$("map-layer").textContent="Etki katmanı: "+(s.settings.showInfluence?"Açık":"Kapalı");save();render()}});
  setInterval(()=>{if(!s||!running||s.pendingEvent||s.status!=="running"){if(s&&s.pendingEvent&&running){running=false;$("toggle-time").textContent="▶"}return}advanceDays(s,s.settings.speed||3);save();render()},1000);
