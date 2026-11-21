@@ -95,8 +95,8 @@ export function countrySvg(state,selected){
  const country=NEIGHBORS.map(([label,coords,color,anchor])=>polygon(coords,"v-country",'fill="'+color+'"')+txt(anchor[0],anchor[1],label,"v-country-label")).join("");
  const zones=SECTORS.map(z=>polygon(z.points,"v-zone",'fill="'+z.fill+'"')).join("");
  const guides=PROVINCE_GUIDES.map(coords=>polyPath(coords,"v-province-guide")).join("");
- const marker=REGION_DATA.map(([id,name,lat,lon])=>{
-  const city=CAPITALS[id][0];
+ const marker=REGION_DATA.map(([id,name])=>{
+  const [city,lat,lon]=CAPITALS[id];
   const v=Number(state.regions?.[id]?.influence||0);
   const radius=id===selected?8.5:6.4;
   const position=x(lon).toFixed(1)+","+y(lat).toFixed(1);
