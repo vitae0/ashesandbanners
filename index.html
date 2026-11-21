@@ -30,7 +30,7 @@
         <label>RNG tohumu<input id="start-seed" type="number" min="1" max="2147483646" placeholder="Rastgele"></label>
       </div>
       <div class="setup-actions"><button class="primary" id="new-game">Kampanyayı başlat →</button><button id="resume-game" hidden>Kayda devam et</button><button id="import-setup">Kayıt dosyası aç</button></div>
-      <p class="footnote">Dönemin 1939 Polonya coğrafyasını temel alan şematik harita. Sınırlar yaklaşık, yerleşimler ve binalar temsilî oyun alanlarıdır. Harita çevrimdışı çalışır.</p>
+      <p class="footnote">1939 Polonya ve çevresini kapsayan gerçek tarihsel harita taramaları kullanılır. Kentler için özgün dönem paftaları; parsel poligonları yalnızca tarihsel verilerle doğrulandığında gösterilir.</p>
     </div>
   </div>
   <main id="game" class="game" hidden>
@@ -55,8 +55,8 @@
       </aside>
       <section class="map-panel">
         <div class="map-toolbar"><div><b>SAHA HARİTASI</b><small id="map-scope">Polonya 1939 • İller</small></div><div class="map-actions"><button id="map-home">Polonya</button><button id="map-city">Varşova</button><button id="map-layer">Etki katmanı: Açık</button></div></div>
-        <div id="map" aria-label="Polonya 1939 şematik oyun haritası"></div>
-        <div class="map-legend"><span id="map-legend-dot"></span><span>Düşük etki</span><div class="gradient"></div><span>Yüksek etki</span><span class="map-info">Dönem haritası • 1939 sınırları yaklaşık • temsilî şehir kroki</span></div>
+        <div id="map" aria-label="1939 özgün Polonya ve çevre devletler arşiv haritası"></div>
+        <div class="map-legend"><span id="map-legend-dot"></span><span>Düşük etki</span><div class="gradient"></div><span>Yüksek etki</span><span class="map-info">Gerçek tarihî paftalar • 1939 ülke haritası • 1935/1938 şehir planları</span></div>
         <div class="map-status" id="map-status">Dönem haritası hazır</div>
       </section>
       <section class="content" id="content" aria-live="polite"></section>
