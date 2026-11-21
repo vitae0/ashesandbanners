@@ -180,3 +180,25 @@ body { background:#101b21; }
 .v-city-zoom button {font-size:12px;min-width:32px;padding:6px 10px}
 .v-city-zoom button[data-map-zoom] {font-weight:800;font-size:17px}
 @media(max-width:800px){.v-city-foot {flex-wrap:wrap}.v-city-zoom {margin-left:auto}}
+
+
+/* Authentically sourced overhead maps; never draw fictional building footprints. */
+.v-city-historical {background:#d7c8a7;image-rendering:auto}
+.v-city-historical .v-city-archive {pointer-events:auto}
+.v-city-historical .v-historical-title {pointer-events:none}
+.v-city-historical .v-historical-title text {fill:#f5ecdc;font:700 15px system-ui,sans-serif}
+.v-city-historical .v-historical-title .v-city-subtitle {font:10px system-ui,sans-serif;letter-spacing:1px;fill:#dec99e}
+.v-city-historical .v-historical-footer {paint-order:stroke;stroke:#1c292b;stroke-width:4;fill:#fff2d5;font:700 10px system-ui,sans-serif;pointer-events:none}
+.v-city-historical .v-missing-historical rect {fill:#eee5cf;stroke:#b6a784;stroke-width:2}
+.v-city-historical .v-missing-historical text {fill:#635748;font:700 16px system-ui,sans-serif}
+.v-city-historical .v-missing-historical text+text {font:12px system-ui,sans-serif;fill:#786d60}
+.v-city-provenance {border:1px solid #52666a;border-left:3px solid var(--theme);background:#17272e;padding:11px;margin:10px 0 18px;color:#d1d8d2}
+.v-city-provenance b {font-size:11px;letter-spacing:.7px;color:#e2cfac}
+.v-city-provenance p {color:#c5d0cc;font-size:11px;line-height:1.55;margin:8px 0}
+.v-city-provenance a {display:block;font-size:11px;color:#e3bf86;text-decoration:underline;overflow-wrap:anywhere}
+.v-city-provenance .v-city-secondary {border-top:1px solid #435861;padding-top:10px;margin-top:12px}
+.v-city-body .v-site-scroll {margin-top:8px;max-height:min(36vh,295px)}
+.v-city-window {width:min(1130px,calc(100% - 24px))}
+.v-city-body {grid-template-columns:minmax(0,1fr) minmax(205px,275px)}
+.v-city-art {background:#b7aa89;min-width:0}
+@media(max-width:800px){.v-city-body {grid-template-columns:1fr}.v-city-art {min-height:265px}.v-city-window {width:calc(100% - 12px)}}
