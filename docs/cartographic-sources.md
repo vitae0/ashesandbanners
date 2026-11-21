@@ -49,11 +49,11 @@ What the game currently has:
 
 ## Current selectable geographic objects
 
-The map currently exposes **up to 15 historically named urban landmarks and five surrounding real settlements** for Warsaw, and **12 urban places and five surrounding settlements** for Łódź. Their entries are in `src/archival-atlas-data.js`.
+The game now allows precisely **9 individually cited historic Warsaw buildings** and **5 individually cited Łódź buildings**, each linked to an original historical catalogue or heritage source. The canonical verified inventory and provenance links are stored in `src/verified-sites.js`, with a readable audit in `docs/verified-buildings.md`. Other city/village names are not selectable and the obsolete locality register was deleted.
 
-Each includes an approximate latitude and longitude to help developers align **future** verified polygons. These coordinates are NOT sources of a verified building footprint, not guaranteed surveying-grade, and no visible vector polygons have been synthesized from them. A settlement is a single gameplay destination, not a fake 1940 settlement boundary.
+Each listed building includes an approximate latitude and longitude to help developers align **future** verified polygons. These coordinates are NOT sources of a verified building footprint, not guaranteed surveying-grade, and no visible vector polygons have been synthesized from them. A settlement is a single gameplay destination, not a fake 1940 settlement boundary.
 
-For other cities no historically verified building-level vector dataset has yet been incorporated. Therefore they show genuine **regional WIG** maps, rather than fake individual buildings. This is intentional, not a broken missing-feature fallback.
+Other cities and villages have **no playable town/building views or recruitment options**. The country atlas still shows them as historical geography; their regional data remain relevant to the external, abstract war simulation. No fake individual buildings are created. To add a city back, evidence for its pre-1940 buildings must first be included and reviewed.
 
 ## What is necessary for real polygons
 
