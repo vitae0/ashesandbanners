@@ -108,7 +108,7 @@ function politics(){
  +panel("Bu tarihte mevcut örgütler",orgs.map(x=>'<div class="listitem"><b>'+esc(x.name)+'</b><span class="badge">'+esc(x.date.slice(0,7))+'</span><div class="smalltext muted">'+esc(x.note)+'</div></div>').join(""))
  +panel("Örgüt içindeki eğilimler",meter)
  +panel("Siyasi bağlantılar",'<p class="smalltext">Görüşmeler oyun kaynakları harcar, siyasi destek sağlar. Aynı çevreyle 28 gün arayla tekrar görüşülebilir.</p>'+contacts)
- +panel("Siyasi yollar",paths+'<p class="smalltext muted">Gerçek AL 1 Ocak 1944'te kurulmuştur. Alternatif tarih oyununda komünist ağlar güçlenirse 1942'de erken kuruluş mümkündür. PPR, AK veya GL tarihsel tarihlerinden önce mevcut sayılmaz.</p>')
+ +panel("Siyasi yollar",paths+'<p class="smalltext muted">Gerçek AL 1 Ocak 1944’te kurulmuştur. Alternatif tarih oyununda komünist ağlar güçlenirse 1942’de erken kuruluş mümkündür. PPR, AK veya GL tarihsel tarihlerinden önce mevcut sayılmaz.</p>')
  +(s.settings.history==="alternate"?panel("Erken AL durumu",'<div class="grid2">'+metric("Komünist etki",early.left+"%","Gereken: 65")+metric("Hücre",early.cells,"Gereken: 10")+'</div><p class="smalltext">'+(early.dateOK?"Tarih eşiği açıldı.":"Tarih eşiği: 28 Mart 1942.")+' Sol kongre: '+(early.network?"tamam":"beklemede")+'. Milestone onayına ihtiyaç var.</p>'):"");
 }
 function milestones(){
