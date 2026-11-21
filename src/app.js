@@ -220,7 +220,7 @@ function initMap(){
  map=L.map("map",{preferCanvas:true,zoomControl:true}).setView([52.0,19.2],6);
  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'}).addTo(map);
  buildings=L.layerGroup().addTo(map);assetsLayer=L.layerGroup().addTo(map);
- map.on("zoomend",()=>{toggleDistricts();if(map.getZoom()>=15)loadBuildings()});
+ map.on("zoomend",()=>{toggleDistricts();if(map.getZoom()>=15)loadBuildings();else if(buildings){buildings.clearLayers();buildingKey="";}});
  map.on("moveend",()=>{if(map.getZoom()>=15)loadBuildings()});
  setTimeout(()=>map.invalidateSize(),80);paintAssets();loadBoundaries();
 }
@@ -242,7 +242,11 @@ async function loadBuildings(force=false){
  $("map-status").textContent="OSM bina geometrileri sorgulanıyor…";
  const q='[out:json][timeout:20];way["building"]('+(c.lat-.006)+","+(c.lng-.009)+","+(c.lat+.006)+","+(c.lng+.009)+');out geom 130;';
  try{
-  const data=await fetchJson("https://overpass.kumi.systems/api/interpreter?data="+encodeURIComponent(q));
+  let data,err;
+  for(const endpoint of ["https://overpass.kumi.systems/api/interpreter","https://overpass-api.de/api/interpreter"]){
+   try{data=await fetchJson(endpoint+"?data="+encodeURIComponent(q));break}catch(e){err=e}
+  }
+  if(!data)throw err||Error("Overpass unavailable");
   buildings.clearLayers();
   for(const o of (data.elements||[]).filter(o=>o.geometry?.length>=3).slice(0,130)){
    const points=o.geometry.map(x=>[x.lat,x.lon]),tags=o.tags||{},kind=buildingKind(tags),id="way/"+o.id;
@@ -301,6 +305,9 @@ function bind(){
   if(el.id==="op-type"){s.uiOp=el.value;render();return}
   if(el.dataset.setting){
    const key=el.dataset.setting,value=el.type==="checkbox"?el.checked:el.value;
+   if(key==="history"&&value==="historical"&&(s.milestones.includes("early_al")||["ak_independent","al_independent"].includes(s.politics.path))){
+    notify("Kampanya tarihsel çizgiden ayrılmış. Modu geriye almak bu alternatif geçmişi silemez.");render();return;
+   }
    s.settings[key]=key==="chaos"?Number(value):value;
    if(key==="history"&&value==="historical")s.war.sovietVictory=true;
    if(key==="history"&&value==="alternate")s.war.sovietVictory=((s.seed%100)<80);
