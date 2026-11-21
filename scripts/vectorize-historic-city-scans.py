@@ -1,0 +1,138 @@
+#!/usr/bin/env python3
+"""Convert original prewar CITY MAP SCANS into SVG polygon geometry (no raster UI).
+
+This is *cartographic ink vectorization*, not a semantic classification of
+buildings or a georeferenced cadastral trace. All generated polygons reproduce
+spatial linework present in the identified archival map, including printed
+labels. No roads, buildings, or villages are procedurally invented.
+
+The images are build-only inputs and MUST NEVER be inserted into the live UI.
+The generated JavaScript exports polygons and source metadata exclusively.
+"""
+from __future__ import annotations
+
+import json
+import os
+from pathlib import Path
+
+import cv2
+import numpy as np
+
+ROOT = Path(__file__).resolve().parents[1]
+SCANS = {
+    "warszawskie": ("assets/maps/warszawa-1935.png", 1935),
+    "lodzkie": ("assets/maps/lodz-1938.jpg", 1938),
+    "slaskie": ("assets/maps/city-katowice-1939.jpg", 1939),
+    "lwowskie": ("assets/maps/city-lwow-1938.jpg", 1938),
+    "pomorskie": ("assets/maps/city-torun-1921.jpg", 1921),
+}
+OUT = ROOT / "src" / "historical-city-vectors.js"
+W, H = 900, 560
+# Muted screen inks make traced lines readable, without mimicking a photograph.
+LAYERS = (
+    (216, "#b6ac97", 1.8),
+    (160, "#77766f", 1.5),
+    (105, "#414e50", 1.0),
+)
+
+
+def layer_polygons(image, threshold: int, min_area: float):
+    _, mask = cv2.threshold(image, threshold, 255, cv2.THRESH_BINARY_INV)
+    contours, links = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    if links is None:
+        return []
+    links = links[0]
+    items = []
+    for i, contour in enumerate(contours):
+        if len(contour) < 3:
+            continue
+        area = abs(cv2.contourArea(contour))
+        if area < min_area:
+            continue
+        perimeter = cv2.arcLength(contour, True)
+        # Retain actual source bends; choose reproducible simplification.
+        curve = cv2.approxPolyDP(contour, max(0.65, perimeter * 0.00085), True)
+        if len(curve) < 3 or len(curve) > 800:
+            continue
+        x, y, w, h = cv2.boundingRect(curve)
+        if w < 2 or h < 2:
+            continue
+        # RETR_TREE contours alternate ink and open paper. Draw ancestors
+        # before their descendants to preserve interior openings.
+        depth = 0
+        parent = int(links[i][3])
+        while parent >= 0:
+            depth += 1
+            parent = int(links[parent][3])
+        points = curve.reshape(-1, 2).tolist()
+        if len(points) < 3:
+            continue
+        items.append((depth, area, points))
+    # All external contours first, then hole/openings. Nested islands may
+    # be touched up by the darker threshold layers later.
+    items.sort(key=lambda e: (e[0], -e[1]))
+    return [{"d": depth % 2, "p": points} for depth, _, points in items]
+
+
+def convert(filename: Path, year: int):
+    data = cv2.imread(str(filename), cv2.IMREAD_COLOR)
+    if data is None:
+        raise RuntimeError(f"Could not decode archival map {filename}")
+    old_h, old_w = data.shape[:2]
+    scale = min(820 / old_w, 520 / old_h, 1)
+    new_w, new_h = max(1, round(old_w * scale)), max(1, round(old_h * scale))
+    data = cv2.resize(data, (new_w, new_h), interpolation=cv2.INTER_AREA)
+    gray = cv2.cvtColor(data, cv2.COLOR_BGR2GRAY)
+    gray = cv2.GaussianBlur(gray, (3, 3), 0.48)
+    # Normalize paper aging while preserving original pixel adjacency.
+    low = float(np.percentile(gray, 4))
+    high = float(np.percentile(gray, 97))
+    if high - low < 15:
+        high = low + 15
+    gray = np.clip((gray.astype(np.float32) - low) * 255 / (high - low), 0, 255).astype(np.uint8)
+    offset_x = round((W - new_w) / 2)
+    offset_y = round((H - new_h) / 2)
+    rows = []
+    n_shapes = 0
+    for level, color, min_area in LAYERS:
+        regions = layer_polygons(gray, level, min_area)
+        if len(regions) > 18000:
+            raise RuntimeError(f"Suspicious polygon count: {filename} {len(regions)}")
+        rows.append({"ink": color, "polygons": regions})
+        n_shapes += len(regions)
+    if n_shapes < 25:
+        raise RuntimeError(f"Scanned city map has no traceable historical lines: {filename}")
+    print(f"{filename.name} ({year}) original {old_w}×{old_h}; tracing {new_w}×{new_h}: {n_shapes:,} polygons")
+    return {
+        "year": year, "sourceSize": [old_w, old_h],
+        "display": [offset_x, offset_y, new_w, new_h],
+        "method": "ink-contours; not surveyed building footprints",
+        "layers": rows,
+    }
+
+
+def main():
+    output = {}
+    missing = []
+    for region, (filename, year) in SCANS.items():
+        src = ROOT / filename
+        if not src.is_file():
+            missing.append(filename)
+            continue
+        output[region] = convert(src, year)
+    if len(output) < 5:
+        raise RuntimeError("Need all 5 archival city plans before generating visible polygons. Missing: " + ", ".join(missing))
+    text = (
+        "// GENERATED by scripts/vectorize-historic-city-scans.py. Do not hand edit.\n"
+        "// Archival city-map ink contours only, not georeferenced building outlines.\n"
+        "// Sources and licenses: src/historical-city-plans.js and assets/maps/CITY-SOURCES.json.\n"
+        "export const HISTORICAL_CITY_VECTORS="
+        + json.dumps(output, ensure_ascii=False, separators=(",", ":"))
+        + ";\n"
+    )
+    OUT.write_text(text, encoding="utf-8")
+    print("Output", OUT, f"{len(text):,} bytes", "cities:", ",".join(output))
+
+
+if __name__ == "__main__":
+    main()
