@@ -6,6 +6,7 @@
   <meta name="theme-color" content="#11161b">
   <title>Ashes and Banners | Yeraltı</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="vector-ui.css">
 </head>
 <body>
   <div id="setup" class="setup">
@@ -30,36 +31,35 @@
         <label>RNG tohumu<input id="start-seed" type="number" min="1" max="2147483646" placeholder="Rastgele"></label>
       </div>
       <div class="setup-actions"><button class="primary" id="new-game">Kampanyayı başlat →</button><button id="resume-game" hidden>Kayda devam et</button><button id="import-setup">Kayıt dosyası aç</button></div>
-      <p class="footnote">1939 Polonya ve çevresini kapsayan gerçek tarihsel harita taramaları kullanılır. Kentler için özgün dönem paftaları; parsel poligonları yalnızca tarihsel verilerle doğrulandığında gösterilir.</p>
+      <p class="footnote">1939 Polonya sınırları ve 1940 işgal bölgeleri özgün SVG poligonlarla yaklaşık çizilmiştir. Şehirler poligon illüstrasyonlarıdır; gerçek bina/parsel koordinatı iddia edilmez.</p>
     </div>
   </div>
   <main id="game" class="game" hidden>
     <header class="topbar">
       <div class="brand"><span class="brand-mark">A<span>&</span>B</span><div><b>ASHES AND BANNERS</b><small id="org-name">Yeraltı Direnişi</small></div></div>
+      <nav class="topnav" aria-label="Üst komuta menüsü">
+        <button data-tab="map">▱ Harita</button>
+        <button data-tab="overview" class="active">◈ Genel merkez</button>
+        <button data-tab="network">▦ Hücreler</button>
+        <button data-tab="operations">◎ Operasyonlar</button>
+        <button data-tab="politics">♜ Siyaset</button>
+        <button data-tab="milestones">◇ Dönüm noktaları</button>
+        <button data-tab="war">⚑ Cepheler</button>
+        <button data-tab="archive">▤ Arşiv</button>
+        <button data-tab="settings">⚙ Ayarlar</button>
+      </nav>
       <div class="stats" id="stats"></div>
       <div class="timebar"><span id="date-label"></span><button id="toggle-time" aria-label="Duraklat">▶</button><select id="time-speed" aria-label="Gün ilerleme hızı"><option value="1">×1</option><option value="3">×3</option><option value="7">×7</option><option value="14">×14</option></select><button id="next-day">+1 gün</button><button id="save-game">Kaydet</button></div>
     </header>
     <div class="layout">
-      <aside class="nav">
-        <div class="nav-title">KOMUTA</div>
-        <button data-tab="overview" class="active">◈ &nbsp; Genel merkez</button>
-        <button data-tab="network">▥ &nbsp; Hücreler ve hiyerarşi</button>
-        <button data-tab="operations">◎ &nbsp; Operasyonlar</button>
-        <button data-tab="politics">♜ &nbsp; İç siyaset</button>
-        <button data-tab="milestones">◇ &nbsp; Dönüm noktaları</button>
-        <button data-tab="war">⚑ &nbsp; Savaş ve cephe</button>
-        <button data-tab="archive">≡ &nbsp; Olay günlüğü</button>
-        <div class="nav-title bottom-title">SİSTEM</div>
-        <button data-tab="settings">⚙ &nbsp; Oyun ayarları</button>
-        <div class="nav-foot">POLONYA • 1940–45<br><span id="mode-label">Tarihsel çizgi</span></div>
-      </aside>
-      <section class="map-panel">
-        <div class="map-toolbar"><div><b>SAHA HARİTASI</b><small id="map-scope">Polonya 1939 • İller</small></div><div class="map-actions"><button id="map-home">Polonya</button><button id="map-city">Varşova</button><button id="map-layer">Etki katmanı: Açık</button></div></div>
-        <div id="map" aria-label="1939 özgün Polonya ve çevre devletler arşiv haritası"></div>
-        <div class="map-legend"><span id="map-legend-dot"></span><span>Düşük etki</span><div class="gradient"></div><span>Yüksek etki</span><span class="map-info">Gerçek tarihî paftalar • 1939 ülke haritası • 1935/1938 şehir planları</span></div>
-        <div class="map-status" id="map-status">Dönem haritası hazır</div>
-      </section>
       <section class="content" id="content" aria-live="polite"></section>
+      <section class="map-panel">
+        <div class="map-toolbar"><div><b>SAHA HARİTASI</b><small id="map-scope">1939 sınırları · 1940 işgal düzeni</small></div><div class="map-actions"><button id="map-home">Polonya</button><button id="map-city">Varşova</button><button id="map-layer">Etki katmanı: Açık</button></div></div>
+        <div id="map" aria-label="Polonya ve komşuları, tamamı SVG poligonlardan çizilmiş yaklaşık tarihsel harita"></div>
+        <div class="map-legend"><span id="map-legend-dot"></span><span>Düşük etki</span><div class="gradient"></div><span>Yüksek etki</span><span class="map-info">SVG poligon atlası • 16 bölge • temsili şehir yapıları</span></div>
+        <div class="map-status" id="map-status">Poligon haritası hazır</div>
+      </section>
+
     </div>
     <div class="event-mask" id="event-mask" hidden><div class="event-card" id="event-content"></div></div>
     <div class="toast" id="toast" role="status"></div>
