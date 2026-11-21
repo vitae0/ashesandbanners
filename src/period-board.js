@@ -1,7 +1,7 @@
 
 import {REGION_DATA,INSTITUTIONS} from "./engine.js";
 import {HISTORIC_LOCATIONS} from "./period-map-data.js";
-import {ARCHIVE,archiveUrl,archiveFallbackUrl,COORDINATES,atlasKey,validatedSiteList} from "./archival-atlas-data.js";
+import {ARCHIVE,archiveUrl,archiveFallbackUrl,COORDINATES,atlasKey,validatedSiteList,regionalArchive} from "./archival-atlas-data.js";
 
 const escape=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const places=Object.fromEntries(REGION_DATA.map(r=>[r[0],r]));
@@ -93,21 +93,16 @@ export class PeriodBoard {
    this.source(src)+'</div>';
  }
  province(){
-  const data=places[this.region],cityList=HISTORIC_LOCATIONS[this.region]||[],src=ARCHIVE.country;
+  const data=places[this.region],towns=HISTORIC_LOCATIONS[this.region]||[],src=regionalArchive(this.region);
   const r=this.state.regions[this.region]||{};
-  const center=[COUNTRY_X(data[3]),COUNTRY_Y(data[2])];
-  // Show original archival raster. Avoid fake county outlines or fabricated road grids.
-  return '<div class="atlas-subhead"><button data-back="1">← Polonya</button><b>'+escape(data[1])+'</b><small>Gerçek 1939 baskısı · yerleşim seçimi</small></div>'+
-   '<div class="atlas-province"><svg viewBox="'+Math.max(0,Math.min(440,center[0]-260))+' '+Math.max(0,Math.min(488,center[1]-260))+' 520 520" class="atlas-image" role="img" aria-label="1939 haritasında seçilen bölge">'+
-    archivalImg(src,960,1008)+
-    '<circle cx="'+center[0]+'" cy="'+center[1]+'" r="19" fill="var(--theme)" fill-opacity=".15" stroke="var(--theme)" stroke-width="3"/>'+
-    '</svg></div>'+
-   '<div class="atlas-settlement-list">'+cityList.map(town=>'<button data-town="'+escape(town)+'">'+escape(town)+'</button>').join("")+'</div>'+
-   '<p class="atlas-note">Dönem haritası gerçek, fakat 1939 ilçe poligonları henüz vektörleştirilip kaynaklarına göre doğrulanmadı. Uydurma sınır göstermiyorum.</p>'+this.source(src);
+  return '<div class="atlas-subhead"><button data-back="1">← Polonya</button><b>'+escape(data[1])+'</b><small>WIG • '+src.year+' gerçek askerî coğrafya haritası</small></div>'+
+   '<div class="atlas-province"><img class="atlas-province-image" loading="lazy" decoding="async" data-archive-file="'+escape(src.file)+'" src="'+escape(archiveUrl(src.file))+'" alt="'+escape(src.title)+' tarihsel topoğrafik harita"/></div>'+
+   '<div class="atlas-settlement-list">'+towns.map(t=>'<button data-town="'+escape(t)+'">'+escape(t)+'</button>').join("")+'</div>'+
+   '<p class="atlas-note">Bu gerçek WIG tarihsel bölge haritasıdır (1:300.000). 1939 ilçelerinin doğrulanmış poligonları veya kent parselleri değildir. Kaynağa bağlı gerçek konumlar dışında şekil çizilmedi.</p>'+this.source(src);
  }
  city(){
   const key=atlasKey(this.town),record=key?COORDINATES[key]:null;
-  const src=record?ARCHIVE[record.archive]:ARCHIVE.country;
+  const src=record?ARCHIVE[record.archive]:regionalArchive(this.region);
   const sites=record?cityBuildings(this.region,this.town):[];
   const townCount=sites.filter(x=>x.zone==="urban").length,ruralCount=sites.filter(x=>x.zone==="rural").length;
   const name='<div class="atlas-subhead"><button data-back="1">← Bölge</button><b>'+escape(this.town)+'</b><small>'+src.year+' tarihli özgün harita</small></div>';
@@ -121,7 +116,7 @@ export class PeriodBoard {
   }).join("");
   const rural=sites.filter(x=>x.zone==="rural").map(site=>
    '<button data-building="'+site.index+'" class="atlas-site">'+escape(site.name)+'<small>Çevre yerleşim • '+site.lat.toFixed(4)+'° K / '+site.lon.toFixed(4)+'° D</small></button>').join("");
-  let warning=record?'Arşiv görüntüsü tarihsel ve özgündür. Koordinatlar yerleşim/kurum noktalarıdır; tarihsel parsel sınırlarını göstermediği için sahte bina poligonları eklenmedi.':'Bu yerleşim için lisansı doğrulanmış, yapı düzeyinde tarihî plan henüz bulunamadı. Ülke atlası kullanılıyor; uydurma bina alanları açılmıyor.';
+  let warning=record?'Arşiv görüntüsü tarihsel ve özgündür. Koordinatlar yerleşim/kurum noktalarıdır; tarihsel parsel sınırlarını göstermediği için sahte bina poligonları eklenmedi.':'Bu yerleşim için özgün WIG bölge haritası kullanılıyor. Bina ayrıntısı için doğrulanmış kadastro planı bulunmadan poligon oluşturulmuyor.';
   return name+'<div class="atlas-city-layout"><div class="atlas-city-scan"><img loading="lazy" decoding="async" data-archive-file="'+escape(src.file)+'" src="'+escape(archiveUrl(src.file))+'" alt="'+escape(src.title)+' '+src.year+' tarihli özgün harita"/>'+
    '<div class="atlas-scanlabel">'+escape(src.title)+' · '+src.year+'</div></div>'+
    '<div class="atlas-sites"><div class="atlas-section-title">MERKEZDEKİ BELGELİ YERLER <small>'+townCount+'/15</small></div>'+
