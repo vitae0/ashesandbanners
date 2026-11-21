@@ -3,12 +3,13 @@ import assert from "node:assert/strict";
 import {
  createGame,advanceDays,after,activeCells,members,MILESTONES,PATHS,
  canMilestone,approveMilestone,pathAvailable,setPath,scheduleOperation,bestCell,
- assetEffects,INSTITUTIONS,institutionRaidRisk,regroup,validateSave,setCentralization,assignCommander,migrateSave,REGION_DATA
+ assetEffects,INSTITUTIONS,institutionRaidRisk,regroup,validateSave,setCentralization,assignCommander,migrateSave,REGION_DATA,recruitCell,acquireAsset
 } from "../src/engine.js";
 import {currentOrganizations,contactFaction,politicalIdentity,earlyALStatus} from "../src/politics.js";
 import {HISTORIC_LOCATIONS} from "../src/period-map-data.js";
 import {ARCHIVE,COORDINATES,validatedSiteList} from "../src/archival-atlas-data.js";
 import {cityBuildings,PeriodBoard} from "../src/period-board.js";
+import {PLAYABLE_REGIONS,VERIFIED_BUILDING_MAP,getVerifiedSite,verifiedSiteCount} from "../src/verified-sites.js";
 const setup=(x={})=>createGame({seed:123456,...x});
 test("1940 does not contain AK, PPR, PPR GL or AL",()=>{
  const s=setup();const ids=currentOrganizations(s).map(x=>x.id);
@@ -104,7 +105,7 @@ test("period atlas lists historical provinces including former eastern Poland",(
 });
 test("archival city map features reference stable names and coordinates, not generated cadastral lots",()=>{
  const a=cityBuildings("warszawskie","Warszawa"),b=cityBuildings("warszawskie","Warszawa");
- assert.equal(a.length,20);
+ assert.equal(a.length,9);
  assert.equal(JSON.stringify(a),JSON.stringify(b));
  for(const site of a){assert.ok(site.osmId.startsWith("archival/"));assert.ok(site.visibility>=0&&site.visibility<=1)}
  assert.ok(a.some(site=>site.allowed.includes("safehouse")));
@@ -117,7 +118,7 @@ test("legacy 2017-style saves migrate to historical province identifiers",()=>{
  legacy.cells[0].region="mazowieckie";
  legacy.selectedRegion="mazowieckie";
  const migrated=migrateSave(legacy);
- assert.equal(migrated.version,2);
+ assert.equal(migrated.version,3);
  assert.equal(migrated.selectedRegion,"warszawskie");
  assert.equal(migrated.cells[0].region,"warszawskie");
  assert.equal(migrated.assets.length,0);
@@ -136,7 +137,7 @@ test("static board renders without external map libraries or data requests",()=>
  assert.ok(host.innerHTML.includes("Warszawa"));
  board.focusTown("Warszawa");
  assert.equal(game.selectedDistrict,"Warszawa");
- assert.equal((host.innerHTML.match(/data-building=/g)||[]).length,20);
+ assert.equal((host.innerHTML.match(/data-building=/g)||[]).length,9);
  board.back();assert.equal(board.view,"province");
  board.home();assert.equal(board.view,"country");
  assert.ok(callbacks.length>=3);
@@ -147,7 +148,57 @@ test("historical maps are attributed original scans, not hand-drawn shapes",()=>
  assert.ok(ARCHIVE.country.file.endsWith(".jpg"));
  assert.equal(ARCHIVE.warszawa.year,1935);
  assert.equal(ARCHIVE.lodz.year,1938);
- assert.equal(validatedSiteList("Warszawa").length,20);
- assert.equal(validatedSiteList("Łódź").length,17);
+ assert.equal(validatedSiteList("Warszawa").length,9);
+ assert.equal(validatedSiteList("Łódź").length,5);
  assert.ok(!JSON.stringify(ARCHIVE).includes("geoBoundaries"));
+});
+
+test("only two regions with sourced historic buildings are playable",()=>{
+ const state=setup();
+ assert.deepEqual(PLAYABLE_REGIONS.slice().sort(),["lodzkie","warszawskie"].sort());
+ assert.ok(state.cells.every(c=>PLAYABLE_REGIONS.includes(c.region)));
+ assert.equal(recruitCell(state,"krakowskie").ok,false);
+ assert.equal(recruitCell(state,"lubelskie").ok,false);
+ assert.equal(recruitCell(state,"warszawskie").ok,true);
+ assert.equal(cityBuildings("krakowskie","Kraków").length,0);
+});
+test("no unverified park, plaza, village, or free-form building is accepted",()=>{
+ const s=setup();
+ const list=cityBuildings("warszawskie","Warszawa");
+ assert.equal(verifiedSiteCount(),14);
+ assert.ok(list.every(b=>b.verifiedPrewar&&!b.polygonVerified&&!!b.source&&b.source.startsWith("https://")));
+ assert.ok(list.every(b=>!["Rynek Starego Miasta","Łomianki","Park Źródliska","Plac Wolności"].includes(b.name)));
+ assert.equal(acquireAsset(s,{osmId:"custom-building",region:"warszawskie",lat:52.2,lon:21}, "safehouse").ok,false);
+ const trueSite=list.find(b=>b.kind==="school");
+ assert.ok(trueSite);
+ assert.equal(acquireAsset(s,trueSite,"safehouse").ok,false);
+ assert.equal(acquireAsset(s,trueSite,"school").ok,true);
+ assert.ok(s.assets[0].source.includes("warszawa1939.pl"));
+ assert.equal(s.assets[0].polygonVerified,false);
+});
+test("old saves discard unsourced building links and inaccessible regions",()=>{
+ const state=setup();state.version=2;
+ state.assets=[{osmId:"way/999",region:"warszawskie",type:"church"}];
+ state.cells.push({...state.cells[0],id:"z",region:"krakowskie",name:"Old unsupported cell"});
+ const migrated=migrateSave(state);
+ assert.equal(migrated.version,3);
+ assert.equal(migrated.assets.length,0);
+ assert.equal(migrated.cells.some(c=>c.region==="krakowskie"),false);
+ assert.ok(migrated.cells.every(c=>PLAYABLE_REGIONS.includes(c.region)));
+});
+test("map never provides clickable places in undocumented regions",()=>{
+ const host={innerHTML:"",addEventListener(){}};
+ const board=new PeriodBoard(host,()=>{}),s=setup();
+ board.mount(s);
+ assert.ok(!host.innerHTML.includes('data-region="krakowskie"'));
+ board.focusRegion("krakowskie");
+ assert.equal(board.view,"country");
+ board.focusRegion("warszawskie");
+ assert.ok(host.innerHTML.includes("Warszawa"));
+ assert.ok(!host.innerHTML.includes('data-town="Płock"'));
+ board.focusTown("Płock","warszawskie");
+ assert.equal(board.view,"province");
+ board.focusTown("Warszawa","warszawskie");
+ assert.ok(!host.innerHTML.includes("ÇEVRE YERLEŞİMLER"));
+ assert.equal((host.innerHTML.match(/data-building=/g)||[]).length,9);
 });
