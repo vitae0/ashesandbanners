@@ -168,46 +168,126 @@ function house(x0,y0,w,h,tone,kind,idx){
  if(kind==="municipal")feature='<polygon points="'+x0+','+(top-4)+' '+(x0+w)+','+(top-4)+' '+(x0+w-9)+','+(top-15)+' '+(x0+9)+','+(top-15)+'" fill="'+cement+'"/>';
  return '<g class="v-building">'+side+face+topShape+windows+feature+'</g>';
 }
+/**
+ * Procedural overhead city map. Roads, land parcels, roofs, factories, squares
+ * and satellite villages are viewed from above, never as a perspective skyline.
+ * The stylized blocks are not claims of historic cadastral footprints.
+ */
 export function cityPortrait(region,name){
- const rand=randomFor(region+"|"+name);
- const type=CITY_MODE[region]||"rural";
- const skyline=[];
- const tones=["#a99d89","#908b83","#c4a987","#bcb09a","#827c7c","#a48e78"];
- skyline.push('<svg class="v-city-scene" viewBox="0 0 900 460" role="img" aria-label="'+esc(name)+' için sadece SVG poligonlarından oluşan temsili şehir illüstrasyonu">'+
- '<defs><linearGradient id="v-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7a9199"/><stop offset="1" stop-color="#cad0b5"/></linearGradient></defs>'+
- '<rect width="900" height="460" fill="url(#v-sky)"/>'+
- '<polygon points="0,185 90,167 145,185 250,155 410,185 590,149 760,172 900,140 900,460 0,460" fill="#698277"/>'+
- '<polygon points="0,282 240,240 515,257 900,208 900,460 0,460" fill="#7b8b79"/>'+
- '<polygon points="0,365 320,302 620,330 900,275 900,460 0,460" fill="#6f7c70"/>'+
- '<polygon points="0,362 900,271 900,332 0,422" fill="#a49a85"/>'+
- '<polygon points="0,390 900,300 900,314 0,405" fill="#d6c9ae"/>'+
- '<polygon points="0,432 900,346 900,388 0,460" fill="#9d988b"/>');
- if(type==="port")skyline.push('<polygon points="0,290 150,275 370,289 510,268 540,322 0,355" fill="#7696a0"/>'+
- '<path d="M135 271L165 187L196 271M164 187L225 204" fill="none" stroke="#515866" stroke-width="5"/>');
- for(let row=0;row<3;row++){
-  const yy=250+row*65;
-  for(let j=0;j<11;j++){
-   const xx=20+j*79+(row%2)*21;
-   if(xx>865)continue;
-   const w=35+rand()*34;
-   const h=(type==="industrial"?40:32)+rand()*(type==="capital"||type==="urban"?105:type==="historic"?87:type==="industrial"?72:42);
-   const isChurch=(j===5&&row===1&&type!=="industrial")||(j===7&&row===0&&type==="historic");
-   const isFactory=type==="industrial"&&j%4===0;
-   const kind=isChurch?"church":isFactory?"factory":j%7===3?"municipal":"house";
-   skyline.push(house(xx,yy,w,h,tones[(j+row)%tones.length],kind,j+row*12));
+ const rng=randomFor(region+"|"+name);
+ const kind=CITY_MODE[region]||"rural";
+ const industrial=kind==="industrial";
+ const urban=["capital","urban","industrial","historic","port"].includes(kind);
+ const roofColors=["#8c6655","#b78b65","#826b61","#9b7c69","#6f7775","#a59b89"];
+ const p=(a,cl,fill,extra="")=>'<polygon class="'+cl+'" points="'+a.map(t=>t.join(",")).join(" ")+'" fill="'+fill+'" '+extra+'/>';
+ const block=(xx,yy,w,h,fill,cls="v-building")=>p([[xx,yy],[xx+w,yy],[xx+w,yy+h],[xx,yy+h]],cls,fill,'stroke="#374b45" stroke-width="1.5"');
+ const bldg=(bx,by,bw,bh,type,shade)=>{
+  let parts='<g class="v-building v-roof-'+type+'">'+block(bx,by,bw,bh,shade);
+  // Rectangular top-down roof ridges; no front or side facade is drawn.
+  if(type==="house"){
+   parts+=p([[bx,by],[bx+bw/2,by+bh/2],[bx,by+bh]],"v-roof-plane","#795c55",'opacity=".45"');
+   parts+=p([[bx+bw,by],[bx+bw/2,by+bh/2],[bx+bw,by+bh]],"v-roof-plane","#f0cfa6",'opacity=".28"');
+   parts+='<path d="M'+bx+' '+(by+bh/2)+'h'+bw+'" stroke="#ede0cb" stroke-opacity=".6" stroke-width="1"/>';
+  } else if(type==="factory"){
+   for(let k=5;k<bw-5;k+=11)
+    parts+='<path d="M'+(bx+k)+' '+(by+2)+'v'+(bh-4)+'" stroke="#dad5c2" stroke-width="4" opacity=".48"/>';
+   parts+=block(bx+bw*.7,by+bh*.24,Math.min(11,bw*.18),Math.min(11,bh*.32),"#4a5452","v-chimney");
+  } else if(type==="church"){
+   parts+=block(bx+bw*.34,by-9,bw*.32,bh+18,"#c4b99d","v-basilica");
+   parts+='<path d="M'+(bx+bw/2)+' '+(by-8)+'v'+(bh+16)+'M'+(bx+2)+' '+(by+bh/2)+'h'+(bw-4)+'" stroke="#eee3c9" stroke-width="2"/>';
+  } else if(type==="civic"){
+   parts+='<path d="M'+(bx+7)+' '+(by+7)+'h'+(bw-14)+'v'+(bh-14)+'h-'+(bw-14)+'Z" fill="none" stroke="#e1d3b6" stroke-width="3"/>';
+  }
+  return parts+'</g>';
+ };
+ let art='<svg class="v-city-scene v-city-overhead" viewBox="0 0 900 560" role="img" aria-label="'+esc(name)+' kentinin kuşbakışı temsili sokak, ada, bina ve köy planı">'+
+ '<rect x="0" y="0" width="900" height="560" fill="#93a68c"/>';
+ // Agricultural landscape and fields outside the densest street blocks.
+ for(let col=0;col<14;col++){
+  const xx=(col*83+30)%950,yy=(col*129+70)%560;
+  const hh=40+rng()*38,ww=57+rng()*36;
+  art+=p([[xx,yy],[xx+ww,yy-7],[xx+ww+6,yy+hh],[xx+3,yy+hh+7]],"v-field",
+   ["#a6b687","#84996f","#9cac78","#b2ae81"][col%4],'stroke="#7b8d69" stroke-width="1"');
+ }
+ // A river is an overhead flowing strip, not a skyline horizon.
+ if(["capital","port","rural","historic"].includes(kind)){
+  art+=p([[0,28],[90,43],[192,16],[314,26],[425,0],[470,0],[328,59],[204,51],[94,81],[0,70]],"v-water","#6b9aa3");
+  art+='<path d="M0 48L90 63 200 33 316 41 430 8" fill="none" stroke="#a9ced0" stroke-width="2" opacity=".55"/>';
+ }
+ // Slightly rotated urban fabric keeps map readable and avoids fabricated cadastral exactness.
+ art+='<g transform="rotate(-7 450 280)">';
+ art+=block(84,55,745,460,"#a0aa8b","v-city-ground");
+ for(const xx of [95,227,359,491,623,755,847]){
+  art+=block(xx-12,34,24,506,"#777d78","v-road");
+  art+=block(xx-1,34,2,506,"#aaae9c","v-road-line");
+ }
+ for(const yy of [65,167,269,371,473,526]){
+  art+=block(72,yy-13,802,26,"#737e7b","v-road");
+  art+=block(72,yy-1,802,2,"#aeb7a7","v-road-line");
+ }
+ // Build blocks: each roof has a polygon footprint, internal courtyards, green lots.
+ for(let row=0;row<4;row++)for(let col=0;col<5;col++){
+  const xx=110+col*132,yy=82+row*102;
+  const edge=111;
+  art+=block(xx-4,yy-4,edge+8,82,"#b7ba9f","v-lot");
+  if((col===2&&row===1)||(col===3&&row===2&&kind==="historic")){
+   art+=block(xx+11,yy+9,edge-20,65,"#c5baa0","v-plaza");
+   art+=block(xx+37,yy+21,30,30,"#899e88","v-garden");
+   art+='<text x="'+(xx+53)+'" y="'+(yy+61)+'" class="v-map-tiny" text-anchor="middle">MEYDAN</text>';
+   continue;
+  }
+  const garden=(row+col)%6===3||(kind==="rural"&&(row+col)%4===1);
+  if(garden){
+   art+=block(xx+11,yy+7,90,59,"#8caa85","v-garden");
+   art+=block(xx+14,yy+10,84,53,"#a2b592","v-garden");
+   for(let t=0;t<6;t++){
+    const cx=xx+22+(t%3)*25,cy=yy+23+Math.floor(t/3)*22;
+    art+=p([[cx,cy-7],[cx+6,cy],[cx,cy+7],[cx-6,cy]],"v-tree",t%2?"#557d65":"#668b70");
+   }
+   continue;
+  }
+  const buildingCount=industrial?3:urban?4:3;
+  for(let k=0;k<buildingCount;k++){
+   const px=xx+4+(k%2)*53+Math.round(rng()*3),py=yy+5+Math.floor(k/2)*35;
+   const wide=(industrial&&col%3===0&&k===0);
+   const bw=wide?92:38+Math.round(rng()*7),bh=wide?58:23+Math.round(rng()*7);
+   if(wide&&k>0)continue;
+   const isFactory=industrial&&(col+row)%3===0&&k===0;
+   const isChurch=!industrial&&(col===1&&row===1&&k===0||col===4&&row===0&&k===0);
+   const isCivic=!isFactory&&!isChurch&&(row===0&&col===2&&k===0);
+   const type=isFactory?"factory":isChurch?"church":isCivic?"civic":"house";
+   art+=bldg(px,py,bw,bh,type,roofColors[(row*6+col+k)%roofColors.length]);
   }
  }
- if(type==="capital"||type==="historic")skyline.push('<polygon points="392,166 422,116 455,166" fill="#6c5960" stroke="#303e43" stroke-width="2"/>'+
-  house(400,230,46,73,"#bdb1a0","church",4));
- skyline.push('<g class="v-rural">');
- for(let v=0;v<3;v++){
-  const vx=45+v*280+(v%2)*32,vy=392+v*10;
-  skyline.push('<polygon points="'+(vx-18)+','+(vy+8)+' '+(vx+86)+','+(vy-6)+' '+(vx+106)+','+(vy+20)+' '+vx+','+(vy+40)+'" fill="#8a9b76" stroke="#5f795f" stroke-width="2"/>'+
-  house(vx,vy+11,34,22,"#c4ac8d","farm",v)+
-  '<text x="'+(vx+10)+'" y="'+(vy+58)+'" class="v-village-label">KÖY '+(v+1)+'</text>');
+ if(kind==="port"){
+  art+=block(72,67,156,20,"#4a7d87","v-water");
+  art+='<path d="M120 88v66M158 88v65" stroke="#395f6b" stroke-width="6"/>';
  }
- skyline.push('</g><text x="20" y="28" class="v-city-illustration-label">TEMSİLÎ ŞEHİR SİLÜETİ · GERÇEK BİNA YERLEŞİMİ DEĞİLDİR</text></svg>');
- return skyline.join("");
+ art+='</g>';
+ // Railway is a schematic top-down diagonal with sleepers, only for appropriate cities.
+ if(industrial||kind==="capital"||kind==="urban"){
+  art+='<path d="M0 514L900 436" fill="none" stroke="#494f52" stroke-width="13"/>'+
+    '<path d="M0 510L900 432M0 518L900 440" fill="none" stroke="#b9b2a0" stroke-width="2"/>';
+  for(let k=0;k<36;k++){
+   const xx=k*27,yy=514-xx*78/900;
+   art+='<path d="M'+xx+' '+(yy-10)+'v20" stroke="#c1a989" stroke-width="2"/>';
+  }
+ }
+ // Each rural satellite settlement gets one explicit roof footprint.
+ art+='<g class="v-rural">';
+ for(const [v,[vx,vy]] of [[46,447],[820,85],[740,517]].entries()){
+  const n=v+1;
+  art+=p([[vx-16,vy-12],[vx+30,vy-18],[vx+38,vy+16],[vx-10,vy+22]],"v-village-plot","#b7bc90",'stroke="#657d65" stroke-width="2"');
+  art+=bldg(vx-3,vy-6,24,17,"house","#a56e55");
+  art+='<text x="'+(vx+10)+'" y="'+(vy+35)+'" text-anchor="middle" class="v-village-label">KÖY '+n+'</text>';
+ }
+ art+='</g>';
+ art+='<g class="v-city-map-label"><rect x="12" y="10" width="485" height="28" rx="4" fill="#1e353a" opacity=".9"/>'+
+ '<text x="24" y="29" class="v-city-illustration-label">KUŞBAKIŞI ŞEHİR PLANI · TEMSİLÎ ADA VE BİNALAR</text></g>'+
+ '<g transform="translate(856 44)"><path d="M0 27V-14L-9 1 0-26 9 1 0-14" fill="none" stroke="#263c3d" stroke-width="3"/>'+
+ '<text y="-30" text-anchor="middle" fill="#223738" font-size="13" font-weight="bold">K</text></g>'+
+ '</svg>';
+ return art;
 }
 export class PolygonBoard {
  constructor(host,onChange){
@@ -329,7 +409,7 @@ export class PolygonBoard {
    '<button type="button" data-map-back="1" aria-label="Şehri kapat">✕ <span>Kapat</span></button></header>'+
    '<div class="v-city-body"><div class="v-city-art">'+cityPortrait(id,this.town)+'</div>'+
    '<div class="v-city-notes"><div class="v-miniheading">YERLEŞİM VE YAPILAR</div>'+
-   '<p>Taş binalar, işyerleri, fabrikalar, dini yapılar, konutlar ve çevredeki köyler ayrı poligonlarla çizilmiştir. Biçimler şematiktir; tarihî parsel veya bina planı değildir.</p>'+
+   '<p>Kuşbakışı sokak ağı, bina çatıları, parklar, meydanlar, fabrikalar, demiryolu ve çevre köyler ayrı poligonlardan oluşur. Çizim tarihsel kadastro haritası değil, stilize bir şehir planıdır.</p>'+
    '<div class="v-site-scroll">'+list+'</div></div></div>'+
    '<footer class="v-city-foot"><span>Özgün SVG çizimi · dış görsel yok · yaklaşık coğrafya</span>'+
    '<button type="button" data-map-home="1">← Stratejik harita</button></footer></section>';
