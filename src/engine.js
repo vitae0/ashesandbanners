@@ -440,7 +440,7 @@ export const LEGACY_REGION_IDS={
 };
 export function migrateSave(old){
  if(!old||!old.regions||!old.settings||!Array.isArray(old.cells))return null;
- if(old.version===3&&old.regions.warszawskie)return old;
+ // Always validate v3 saves too: imported JSON must never resurrect unsourced sites.
  const fresh=createGame({...old.settings,seed:old.seed||1});
  const regionIDs=new Set(Object.keys(fresh.regions));
  const convert=id=>regionIDs.has(id)?id:LEGACY_REGION_IDS[id]||"warszawskie";
@@ -458,7 +458,7 @@ export function migrateSave(old){
    cells:old.cells.map(c=>({...c,region:convert(c.region)})),
    assets:(old.assets||[]).map(a=>({...a,region:convert(a.region)})),
    operations:(old.operations||[]).map(o=>({...o,region:convert(o.region)}))};
- }else if(old.version===2){v={...fresh,...old,settings:{...fresh.settings,...old.settings}}}
+ }else if(old.version===2||old.version===3){v={...fresh,...old,settings:{...fresh.settings,...old.settings}}}
  else return null;
  const previousCount=v.cells.length,previousAssets=(v.assets||[]).length;
  v.version=3;
@@ -475,7 +475,9 @@ export function migrateSave(old){
  v.selectedRegion=PLAYABLE_REGIONS.includes(v.selectedRegion)?v.selectedRegion:"warszawskie";
  v.selectedDistrict="";v.selectedBuilding=null;
  v.log=Array.isArray(v.log)?v.log.slice(0,240):[];
- entry(v,"Eski kayıt doğrulanmış bina bölgelerine aktarıldı. Kaynaksız bölgelerdeki "+(previousCount-v.cells.length)+" hücre ve "+(previousAssets-v.assets.length)+" eski kurum kaldırıldı.","info");
+ if(old.version<3||previousCount!==v.cells.length||previousAssets!==v.assets.length){
+  entry(v,"Kayıt kaynak denetiminden geçirildi. Desteksiz "+Math.max(0,previousCount-v.cells.length)+" hücre ve "+(previousAssets-v.assets.length)+" kurum kaldırıldı.","info");
+ }
  return v;
 }
 export function validateSave(v){
