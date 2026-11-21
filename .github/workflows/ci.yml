@@ -19,6 +19,7 @@ jobs:
           node --check src/app.js
           node --check src/period-map-data.js
           node --check src/period-board.js
+          node --check src/archival-atlas-data.js
           node --check tests/engine.test.js
       - name: Run simulation tests
         run: npm test
