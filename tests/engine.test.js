@@ -6,7 +6,8 @@ import {
  assetEffects,INSTITUTIONS,institutionRaidRisk,regroup,validateSave,setCentralization,assignCommander,migrateSave,REGION_DATA
 } from "../src/engine.js";
 import {currentOrganizations,contactFaction,politicalIdentity,earlyALStatus} from "../src/politics.js";
-import {MAP_POINTS,CELLS,HISTORIC_LOCATIONS,periodOccupation} from "../src/period-map-data.js";
+import {HISTORIC_LOCATIONS} from "../src/period-map-data.js";
+import {ARCHIVE,COORDINATES,validatedSiteList} from "../src/archival-atlas-data.js";
 import {cityBuildings,PeriodBoard} from "../src/period-board.js";
 const setup=(x={})=>createGame({seed:123456,...x});
 test("1940 does not contain AK, PPR, PPR GL or AL",()=>{
@@ -97,16 +98,15 @@ test("period atlas lists historical provinces including former eastern Poland",(
  const ids=REGION_DATA.map(r=>r[0]);
  assert.equal(ids.length,16);
  for(const id of ["warszawskie","wilenskie","wolynskie","poleskie","lwowskie","tarnopolskie"]){
-  assert.ok(ids.includes(id));assert.ok(CELLS.some(c=>c.id===id&&c.vertices.length>=3));
-  assert.ok(HISTORIC_LOCATIONS[id].length>=4);
+  assert.ok(ids.includes(id));assert.ok(HISTORIC_LOCATIONS[id].length>=4);
  }
  for(const id of ["mazowieckie","malopolskie","podkarpackie"])assert.ok(!ids.includes(id));
 });
-test("schematic city blocks have stable building identifiers and bounded visibility",()=>{
+test("archival city map features reference stable names and coordinates, not generated cadastral lots",()=>{
  const a=cityBuildings("warszawskie","Warszawa"),b=cityBuildings("warszawskie","Warszawa");
- assert.equal(a.length,24);
+ assert.equal(a.length,20);
  assert.equal(JSON.stringify(a),JSON.stringify(b));
- for(const site of a){assert.ok(site.osmId.startsWith("period/"));assert.ok(site.visibility>=0&&site.visibility<=1)}
+ for(const site of a){assert.ok(site.osmId.startsWith("archival/"));assert.ok(site.visibility>=0&&site.visibility<=1)}
  assert.ok(a.some(site=>site.allowed.includes("safehouse")));
  assert.ok(a.some(site=>site.allowed.includes("school")));
 });
@@ -124,25 +124,30 @@ test("legacy 2017-style saves migrate to historical province identifiers",()=>{
  assert.equal(validateSave(migrated),true);
 });
 
-test("occupied interwar East changes status in June 1941 without losing the 1939 provinces",()=>{
- assert.equal(periodOccupation("1940-01-01","wilenskie"),"soviet");
- assert.equal(periodOccupation("1942-01-01","wilenskie"),"german");
- assert.equal(periodOccupation("1942-01-01","poznanskie"),"annexed");
-});
 test("static board renders without external map libraries or data requests",()=>{
  const callbacks=[];
  const host={innerHTML:"",addEventListener(){}};
  const board=new PeriodBoard(host,(_s,e)=>callbacks.push(e.type));
  const game=setup();board.mount(game);
  assert.ok(host.innerHTML.includes("<svg"));
- assert.ok(host.innerHTML.includes("WILNO"));
+ assert.ok(host.innerHTML.includes("Polen_1939.jpg"));
  assert.ok(!host.innerHTML.includes("tile.openstreetmap"));
  board.focusRegion("warszawskie");
  assert.ok(host.innerHTML.includes("Warszawa"));
  board.focusTown("Warszawa");
  assert.equal(game.selectedDistrict,"Warszawa");
- assert.equal((host.innerHTML.match(/data-building=/g)||[]).length,24);
+ assert.equal((host.innerHTML.match(/data-building=/g)||[]).length,20);
  board.back();assert.equal(board.view,"province");
  board.home();assert.equal(board.view,"country");
  assert.ok(callbacks.length>=3);
+});
+
+test("historical maps are attributed original scans, not hand-drawn shapes",()=>{
+ assert.equal(ARCHIVE.country.year,1939);
+ assert.ok(ARCHIVE.country.file.endsWith(".jpg"));
+ assert.equal(ARCHIVE.warszawa.year,1935);
+ assert.equal(ARCHIVE.lodz.year,1938);
+ assert.equal(validatedSiteList("Warszawa").length,20);
+ assert.equal(validatedSiteList("Łódź").length,17);
+ assert.ok(!JSON.stringify(ARCHIVE).includes("geoBoundaries"));
 });
