@@ -1,7 +1,7 @@
 
 import {REGION_DATA,INSTITUTIONS} from "./engine.js";
 import {HISTORIC_LOCATIONS} from "./period-map-data.js";
-import {ARCHIVE,archiveUrl,COORDINATES,atlasKey,validatedSiteList} from "./archival-atlas-data.js";
+import {ARCHIVE,archiveUrl,archiveFallbackUrl,COORDINATES,atlasKey,validatedSiteList} from "./archival-atlas-data.js";
 
 const escape=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const places=Object.fromEntries(REGION_DATA.map(r=>[r[0],r]));
@@ -10,7 +10,7 @@ const COUNTRY_X=(lon)=>45+(lon-14)*61; // approximate printed-map graticule alig
 const COUNTRY_Y=(lat)=>65+(56-lat)*106;
 const RURAL_SUFFIX=" • çevre yerleşim";
 function archivalImg(src,width,height,extra=""){
- return '<image x="0" y="0" width="'+width+'" height="'+height+'" href="'+escape(archiveUrl(src.file))+'" preserveAspectRatio="xMidYMid meet" '+extra+'/>';
+ return '<image x="0" y="0" width="'+width+'" height="'+height+'" href="'+escape(archiveUrl(src.file))+'" data-archive-file="'+escape(src.file)+'" preserveAspectRatio="xMidYMid meet" '+extra+'/>';
 }
 export function cityBuildings(region,city){
  const key=atlasKey(city);if(!key||COORDINATES[key].region!==region)return [];
@@ -59,6 +59,20 @@ export class PeriodBoard {
  draw(){
   if(!this.state)return;
   this.host.innerHTML=this.view==="country"?this.country():this.view==="province"?this.province():this.city();
+  // Cache real historical scans locally when available, fallback to Commons.
+  for(const el of this.host.querySelectorAll?.("[data-archive-file]")||[]){
+   const file=el.dataset.archiveFile,local=archiveUrl(file),fallback=archiveFallbackUrl(file);
+   let used=false;
+   const setFallback=()=>{
+    if(used)return;
+    used=true;
+    if(el.tagName.toLowerCase()==="image")el.setAttribute("href",fallback);
+    else el.src=fallback;
+   };
+   el.addEventListener("error",setFallback,{once:true});
+   if(typeof fetch==="function"&&local!==fallback)
+    fetch(local,{method:"HEAD"}).then(r=>{if(!r.ok)setFallback()}).catch(setFallback);
+  }
  }
  source(src,limit="1600"){
   return '<a class="board-source" target="_blank" rel="noreferrer" href="'+escape(src.source)+'">'+escape(src.title)+' ('+src.year+') • arşiv kaynağı ↗</a>';
@@ -84,7 +98,7 @@ export class PeriodBoard {
   const center=[COUNTRY_X(data[3]),COUNTRY_Y(data[2])];
   // Show original archival raster. Avoid fake county outlines or fabricated road grids.
   return '<div class="atlas-subhead"><button data-back="1">← Polonya</button><b>'+escape(data[1])+'</b><small>Gerçek 1939 baskısı · yerleşim seçimi</small></div>'+
-   '<div class="atlas-province"><svg viewBox="0 0 960 1008" class="atlas-image" role="img" aria-label="1939 haritasında seçilen bölge">'+
+   '<div class="atlas-province"><svg viewBox="'+Math.max(0,Math.min(440,center[0]-260))+' '+Math.max(0,Math.min(488,center[1]-260))+' 520 520" class="atlas-image" role="img" aria-label="1939 haritasında seçilen bölge">'+
     archivalImg(src,960,1008)+
     '<circle cx="'+center[0]+'" cy="'+center[1]+'" r="19" fill="var(--theme)" fill-opacity=".15" stroke="var(--theme)" stroke-width="3"/>'+
     '</svg></div>'+
@@ -108,7 +122,7 @@ export class PeriodBoard {
   const rural=sites.filter(x=>x.zone==="rural").map(site=>
    '<button data-building="'+site.index+'" class="atlas-site">'+escape(site.name)+'<small>Çevre yerleşim • '+site.lat.toFixed(4)+'° K / '+site.lon.toFixed(4)+'° D</small></button>').join("");
   let warning=record?'Arşiv görüntüsü tarihsel ve özgündür. Koordinatlar yerleşim/kurum noktalarıdır; tarihsel parsel sınırlarını göstermediği için sahte bina poligonları eklenmedi.':'Bu yerleşim için lisansı doğrulanmış, yapı düzeyinde tarihî plan henüz bulunamadı. Ülke atlası kullanılıyor; uydurma bina alanları açılmıyor.';
-  return name+'<div class="atlas-city-layout"><div class="atlas-city-scan"><img loading="lazy" decoding="async" src="'+escape(archiveUrl(src.file))+'" alt="'+escape(src.title)+' '+src.year+' tarihli özgün harita"/>'+
+  return name+'<div class="atlas-city-layout"><div class="atlas-city-scan"><img loading="lazy" decoding="async" data-archive-file="'+escape(src.file)+'" src="'+escape(archiveUrl(src.file))+'" alt="'+escape(src.title)+' '+src.year+' tarihli özgün harita"/>'+
    '<div class="atlas-scanlabel">'+escape(src.title)+' · '+src.year+'</div></div>'+
    '<div class="atlas-sites"><div class="atlas-section-title">MERKEZDEKİ BELGELİ YERLER <small>'+townCount+'/15</small></div>'+
    (urban||'<div class="atlas-warning">Bu yerleşim için doğrulanmış bina envanteri yok.</div>')+
