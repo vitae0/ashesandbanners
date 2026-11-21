@@ -1,6 +1,6 @@
 
 import {REGION_DATA,INSTITUTIONS} from "./engine.js";
-import {PLAYABLE_REGIONS,PLAYABLE_CITIES,getVerifiedSite} from "./verified-sites.js";
+import {PLAYABLE_REGIONS,PLAYABLE_CITIES,getVerifiedSite,buildingStatusAt} from "./verified-sites.js";
 import {ARCHIVE,archiveUrl,archiveFallbackUrl,COORDINATES,atlasKey,validatedSiteList,regionalArchive} from "./archival-atlas-data.js";
 
 const escape=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -63,6 +63,7 @@ export class PeriodBoard {
     state.selectedBuilding?.osmId||"",state.settings.showInfluence?"heat":"plain",
     (state.assets||[]).map(a=>a.osmId).join(",")];
   if(this.view==="country")base.push(...Object.values(state.regions).map(r=>Math.round(r.influence||0)));
+  if(this.view==="town")base.push(...cityBuildings(this.region,this.town).map(x=>buildingStatusAt(getVerifiedSite(x.osmId),state.date).state));
   const signature=base.join("|");
   if(signature===this.lastSignature)return;
   this.lastSignature=signature;
@@ -108,7 +109,7 @@ export class PeriodBoard {
  city(){
   const key=atlasKey(this.town),record=key?COORDINATES[key]:null;
   const src=record?ARCHIVE[record.archive]:regionalArchive(this.region);
-  const sites=record?cityBuildings(this.region,this.town):[];
+  const sites=record?cityBuildings(this.region,this.town).filter(x=>buildingStatusAt(getVerifiedSite(x.osmId),this.state.date).state!=="destroyed"):[];
   const townCount=sites.length;
   const name='<div class="atlas-subhead"><button data-back="1">← Bölge</button><b>'+escape(this.town)+'</b><small>'+src.year+' tarihli özgün harita</small></div>';
   let overlays="";
@@ -116,11 +117,13 @@ export class PeriodBoard {
   // In particular, NO fabricated square building footprints or false clickable cadastral shapes.
   const urban=sites.filter(x=>x.zone==="urban").map(site=>{
    const idx=site.index,owned=this.state.assets.some(a=>a.osmId===site.osmId);
-   return '<button data-building="'+idx+'" class="atlas-site '+(owned?"is-owned":"")+'">'+escape(site.name)+
-    '<small>'+escape(INSTITUTIONS[site.kind]?.name||"Kurum")+' • '+escape(site.sourceAddress||"Belge")+'</small></button>';
+   const access=buildingStatusAt(getVerifiedSite(site.osmId),this.state.date);
+   return '<button data-building="'+idx+'" class="atlas-site '+(owned?"is-owned ":"")+(access.claimable?"":"is-closed")+'">'+escape(site.name)+
+    '<small>'+escape(INSTITUTIONS[site.kind]?.name||"Kurum")+' • '+escape(site.sourceAddress||"Belge")+'</small>'+
+    (access.claimable?"":'<small class="badge bad">'+escape(access.state)+': '+escape(access.reason)+'</small>')+'</button>';
   }).join("");
   const rural="";
-  let warning='Yalnızca 1940 öncesi varlığı kaynakla belgelenmiş binalar listelenir. Harita taraması özgündür; bina koordinatları yaklaşık referans noktalarıdır, doğrulanmış parsel poligonu değildir. Köy, meydan, park ve kaynaksız alanlar oyundan çıkarılmıştır.';
+  let warning='Yalnızca 1940 öncesi varlığı kaynakla belgelenmiş binalar listelenir. Tarihsel olarak kapatılmış, el konulmuş veya askerî kısıtlı binalardan kurum bağlantısı kurulamaz. Harita özgündür; 1940 parsel poligonları doğrulanmış değildir.';
   const sources=sites.map(site=>'<a href="'+escape(site.source)+'" class="board-source" target="_blank" rel="noreferrer">'+escape(site.name)+' ↗</a>').join("");
   return name+'<div class="atlas-city-layout"><div class="atlas-city-scan"><img loading="lazy" decoding="async" data-archive-file="'+escape(src.file)+'" src="'+escape(archiveUrl(src.file))+'" alt="'+escape(src.title)+' '+src.year+' tarihli özgün harita"/>'+
    '<div class="atlas-scanlabel">'+escape(src.title)+' · '+src.year+'</div></div>'+
