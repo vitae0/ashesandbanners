@@ -1,21 +1,21 @@
 
 export const REGION_DATA = [
-  ["mazowieckie","Mazowieckie",52.23,21.01,24,.87,5.5],
-  ["lodzkie","Łódzkie",51.76,19.45,20,.75,2.4],
-  ["malopolskie","Małopolskie",50.06,19.94,18,.91,3.4],
-  ["lubelskie","Lubelskie",51.25,22.57,16,.92,2.1],
-  ["swietokrzyskie","Świętokrzyskie",50.87,20.63,13,.94,1.2],
-  ["podkarpackie","Podkarpackie",50.04,22.0,14,.94,2.1],
-  ["slaskie","Śląskie",50.26,19.02,16,.80,4.5],
-  ["wielkopolskie","Wielkopolskie",52.41,16.93,15,.80,3.5],
-  ["kujawsko-pomorskie","Kujawsko-Pomorskie",53.01,18.61,12,.86,2.1],
-  ["pomorskie","Pomorskie",54.35,18.65,12,.77,2.4],
-  ["warminsko-mazurskie","Warmińsko-Mazurskie",53.78,20.48,8,.74,1.4],
-  ["podlaskie","Podlaskie",53.13,23.17,13,.86,1.2],
-  ["lubuskie","Lubuskie",52.74,15.24,7,.74,1.0],
-  ["dolnoslaskie","Dolnośląskie",51.11,17.03,7,.72,2.9],
-  ["opolskie","Opolskie",50.67,17.93,9,.79,1.0],
-  ["zachodniopomorskie","Zachodniopomorskie",53.43,14.55,7,.72,1.7]
+ ["pomorskie","Pomorskie",53.16,18.60,15,.83,1.9],
+ ["poznanskie","Poznańskie",52.41,16.93,18,.83,2.3],
+ ["warszawskie","Warszawskie",52.23,21.01,24,.86,3.6],
+ ["lodzkie","Łódzkie",51.76,19.45,20,.75,2.6],
+ ["kieleckie","Kieleckie",50.87,20.63,16,.92,2.7],
+ ["slaskie","Śląskie",50.26,19.02,16,.80,1.5],
+ ["krakowskie","Krakowskie",50.06,19.94,18,.91,2.3],
+ ["lubelskie","Lubelskie",51.25,22.57,16,.92,2.1],
+ ["bialostockie","Białostockie",53.13,23.17,13,.83,1.3],
+ ["nowogrodzkie","Nowogródzkie",53.59,25.82,11,.80,1.1],
+ ["wilenskie","Wileńskie",54.69,25.28,10,.75,1.3],
+ ["poleskie","Poleskie",52.10,25.75,9,.77,1.1],
+ ["wolynskie","Wołyńskie",50.75,25.30,10,.73,2.1],
+ ["lwowskie","Lwowskie",49.84,24.03,14,.84,3.1],
+ ["tarnopolskie","Tarnopolskie",49.55,25.60,11,.82,1.6],
+ ["stanislawowskie","Stanisławowskie",48.92,24.72,11,.82,1.5]
 ];
 export const THEMES = {
   ember:{name:"Kızıl Kül",hex:"#c95e54",rgb:"201,94,84"},
@@ -72,13 +72,13 @@ export const CENT_LEVELS = [
  {name:"Sıkı komuta",coord:12,exposure:1.52,delegate:.7,desc:"Yüksek koordinasyon ve güçlü emir zinciri, ciddi karşı istihbarat zaafı."}
 ];
 const CELL_TEMPLATE = [
- ["c1","Varşova Merkez","mazowieckie",16,61,58,45,43],
- ["c2","Praga Hattı","mazowieckie",12,69,42,44,54],
- ["c3","Varşova Öğrenci Ağı","mazowieckie",9,58,68,36,32],
+ ["c1","Varşova Merkez","warszawskie",16,61,58,45,43],
+ ["c2","Praga Hattı","warszawskie",12,69,42,44,54],
+ ["c3","Varşova Öğrenci Ağı","warszawskie",9,58,68,36,32],
  ["c4","Łódź İşçi Çevresi","lodzkie",12,55,38,69,41],
- ["c5","Kraków Saha Birimi","malopolskie",10,62,53,43,59],
+ ["c5","Kraków Saha Birimi","krakowskie",10,62,53,43,59],
  ["c6","Lublin Bağlantısı","lubelskie",9,72,48,56,40],
- ["c7","Kielce Orman Hücresi","swietokrzyskie",10,65,35,50,64]
+ ["c7","Kielce Orman Hücresi","kieleckie",10,65,35,50,64]
 ];
 export function clamp(n,min=0,max=100){return Math.max(min,Math.min(max,Number.isFinite(n)?n:min))}
 export function day(s){return new Date(s.date+"T00:00:00Z")}
@@ -89,7 +89,7 @@ export function pick(s,arr){return arr[Math.floor(rand(s)*arr.length)]}
 export function activeCells(s){return s.cells.filter(c=>!c.destroyed)}
 export function members(s){return activeCells(s).reduce((n,c)=>n+c.members,0)}
 export function influence(s){return Math.round(Object.values(s.regions).reduce((n,r)=>n+r.influence,0)/REGION_DATA.length)}
-export function regionOf(s,id){return s.regions[id]||s.regions.mazowieckie}
+export function regionOf(s,id){return s.regions[id]||s.regions.warszawskie}
 export function entry(s,message,type="info"){s.log.unshift({date:s.date,message,type});if(s.log.length>240)s.log.length=240}
 export function createGame(config={}){
  const settings={history:"historical",difficulty:"regular",events:"normal",speed:3,resources:100,chaos:35,theme:"ember",autoOrders:true,showInfluence:true,...config};
@@ -101,7 +101,7 @@ export function createGame(config={}){
  const seed=((Number(settings.seed)||Math.floor(Math.random()*2147483646))>>>0)||1;
  const regions=Object.fromEntries(REGION_DATA.map(([id,name,lat,lon,support,religion,pop])=>[id,{id,name,lat,lon,support,influence:clamp(support*.56),heat:12,security:55,religion,pop,occupied:"Axis"}]));
  const cells=CELL_TEMPLATE.map(([id,name,region,members,stealth,intel,logistics,field])=>({id,name,region,members,stealth,intel,logistics,field,leadership:42,exposure:8,fatigue:0,commander:null,order:"recruit",busyUntil:null,destroyed:false}));
- const s={version:1,date:"1940-01-01",ticks:0,seed,settings,regions,cells,assets:[],operations:[],funds:Math.round(200*settings.resources/100),supplies:Math.round(25*settings.resources/100),intel:28,legitimacy:40,morale:65,alert:12,politics:{left:15,london:34,officers:32,autonomy:19,socialists:28,rural:24,nationalists:18,contacts:{},path:null},centralization:3,milestones:[],eventsSeen:[],pendingEvent:null,nextEvent:12,war:{started:false,germanAdvance:0,phase:"Savaş öncesi",sovietVictory:null,sabotagePressure:0,armyMomentum:0},successful:{intelligence:0,rail:0,total:0},records:{successful:0,failed:0,arrests:0,days:0,restarts:0},status:"running",ending:null,selectedRegion:"mazowieckie",selectedDistrict:"",selectedBuilding:null,log:[]};
+ const s={version:2,date:"1940-01-01",ticks:0,seed,settings,regions,cells,assets:[],operations:[],funds:Math.round(200*settings.resources/100),supplies:Math.round(25*settings.resources/100),intel:28,legitimacy:40,morale:65,alert:12,politics:{left:15,london:34,officers:32,autonomy:19,socialists:28,rural:24,nationalists:18,contacts:{},path:null},centralization:3,milestones:[],eventsSeen:[],pendingEvent:null,nextEvent:12,war:{started:false,germanAdvance:0,phase:"Savaş öncesi",sovietVictory:null,sabotagePressure:0,armyMomentum:0},successful:{intelligence:0,rail:0,total:0},records:{successful:0,failed:0,arrests:0,days:0,restarts:0},status:"running",ending:null,selectedRegion:"warszawskie",selectedDistrict:"",selectedBuilding:null,log:[]};
  s.war.sovietVictory= settings.history==="historical" ? true : rand(s)<.8;
  entry(s,"Yedi hücre örgütlendi. Varşova merkezli yeraltı ağı faaliyete başladı.","story");
  entry(s,"Not: Bölge ve bina coğrafyası güncel OSM/modern idari harita altlığıdır; 1940 hudutları değildir.","info");
@@ -185,7 +185,7 @@ export function acquireAsset(s,building,type){
  if(s.funds<def.price)return {ok:false,why:"Yeterli kaynak yok."};
  if(s.assets.some(a=>a.osmId===building.osmId))return {ok:false,why:"Bu bina zaten örgüt ağında."};
  const lat=Number(building.lat),lon=Number(building.lon);
- if(!Number.isFinite(lat)||!Number.isFinite(lon)||lat<49||lat>56||lon<14||lon>25)return {ok:false,why:"Harita konumu geçersiz."};
+ if(!Number.isFinite(lat)||!Number.isFinite(lon)||lat<48||lat>56||lon<14||lon>30)return {ok:false,why:"Harita konumu geçersiz."};
  s.funds-=def.price;
  s.assets.push({id:"a"+(s.assets.length+1),osmId:String(building.osmId).slice(0,64),name:String(building.name||"İsimsiz yapı").slice(0,100),region:r.id,type,lat,lon,visibility:clamp(Number(building.visibility??def.visibility)*100,5,100),raids:0});
  entry(s,r.name+": "+def.name+" bağlantısı kuruldu.");return {ok:true};
@@ -427,6 +427,37 @@ export function regroup(s){
  return {ok:true,state:fresh,months};
 }
 export function summary(s){return {date:s.date,days:s.records.days,cells:activeCells(s).length,members:members(s),influence:influence(s),successful:s.records.successful,failed:s.records.failed,arrests:s.records.arrests,restarts:s.records.restarts,path:s.politics.path,ending:s.ending}}
+export const LEGACY_REGION_IDS={
+ mazowieckie:"warszawskie",lodzkie:"lodzkie",malopolskie:"krakowskie",lubelskie:"lubelskie",
+ swietokrzyskie:"kieleckie",podkarpackie:"lwowskie",slaskie:"slaskie",
+ wielkopolskie:"poznanskie","kujawsko-pomorskie":"pomorskie",pomorskie:"pomorskie",
+ "warminsko-mazurskie":"bialostockie",podlaskie:"bialostockie",
+ lubuskie:"poznanskie",dolnoslaskie:"slaskie",opolskie:"slaskie","zachodniopomorskie":"pomorskie"
+};
+export function migrateSave(old){
+ if(!old||!old.regions||!old.settings||!Array.isArray(old.cells))return null;
+ if(old.version===2&&old.regions.warszawskie)return old;
+ if(old.version!==1)return null;
+ const fresh=createGame({...old.settings,seed:old.seed||1});
+ const regions=fresh.regions,ids=new Set(Object.keys(regions));
+ const convert=id=>ids.has(id)?id:LEGACY_REGION_IDS[id]||"warszawskie";
+ const seen=new Set();
+ for(const [id,r] of Object.entries(old.regions)){
+  const key=convert(id);
+  if(!seen.has(key)){
+   regions[key]={...regions[key],influence:clamp(r.influence),support:clamp(r.support),heat:clamp(r.heat),security:clamp(r.security)};
+   seen.add(key);
+  }
+ }
+ const v={...fresh,...old,version:2,regions,selectedRegion:convert(old.selectedRegion),
+ selectedDistrict:"",selectedBuilding:null,
+ cells:old.cells.map(c=>({...c,region:convert(c.region)})),
+ assets:(old.assets||[]).map(a=>({...a,region:convert(a.region),legacy:true})),
+ operations:(old.operations||[]).map(o=>({...o,region:convert(o.region)})),
+ settings:{...fresh.settings,...old.settings},log:(old.log||[]).slice(0,240)};
+ entry(v,"Önceki kayıt, 1939 dönemi şematik haritasına taşındı. Eski OSM yapıları şematik kurumlar olarak korundu.");
+ return v;
+}
 export function validateSave(v){
- return !!(v&&v.version===1&&typeof v.date==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(v.date)&&Array.isArray(v.cells)&&Array.isArray(v.assets)&&v.regions&&v.settings&&v.war&&v.records&&v.politics&&Array.isArray(v.operations)&&Array.isArray(v.milestones));
+ return !!(v&&(v.version===1||v.version===2)&&typeof v.date==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(v.date)&&Array.isArray(v.cells)&&Array.isArray(v.assets)&&v.regions&&v.settings&&v.war&&v.records&&v.politics&&Array.isArray(v.operations)&&Array.isArray(v.milestones));
 }
