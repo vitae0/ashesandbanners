@@ -30,12 +30,39 @@ The **January 1940 occupation overlays** (Germany-annexed west, General Governme
 - Strategic camera is clamped from **1× to 4×**; it cannot leave the map canvas. The city window has its own independent **1× to 2.5×** zoom, drag-pan and reset buttons.
 - Region markers are still selectable by click, Enter and Space. The camera state remains when switching panels.
 
-## Orthographic city maps
+## Authentic bird's-eye period maps
 
-Cities **no longer show perspective cityscapes**. Clicking any one of the 16 voivodeship centres opens a top-down SVG map with streets, cadastral-*style* blocks, road intersections, colored roof footprint polygons, industrial lots, railway, plazas, green spaces and peripheral villages. Roofs are deliberately top-down: no building facades, horizons or sky gradients.
+The old **procedurally invented streets, houses, city blocks and villages** were removed from the active city viewer. The interactive city window now presents **original map facsimiles**, not a modern basemap and not a fictional illustration. Separate source records live in `src/historical-city-plans.js`.
 
-**Caution:** city street networks and symbolic rooftops are **procedural game graphics**, not precise 1939 street surveys. The villages named `KÖY 1–3` are symbolic and not verified individual settlements. Verified 1940-era buildings in Warsaw (15) and Łódź (10) are separately listed and preserve source links and eligibility rules. Other city portraits do not enable undocumented building actions.
+### City-scale scanned plans
+
+| City | Historic record | Year | Source resolution |
+| --- | --- | --- | --- |
+| Warszawa | Municipal street plan | 1935 | ~1:20,000, bundled locally |
+| Łódź | Voivodeship city street plan | c.1938 | ~1:20,000, bundled locally |
+| Katowice | `Plan przewodnik na miasto Katowice` | 1939 | City guide map; locally bundled |
+| Lwów | Horbaya orientation plan | 1938 | 670×573 original; locally bundled |
+| Toruń | Original town street plan | 1921 | Document predates 1939 by 18 years; locally bundled |
+
+All five scans have Wikimedia Commons file-page sources, identified and dated in the source registry. Their original scanned content is used: **not auto-reshaped into invented property footprints**. The city window keeps the previously implemented 2.5× pan/zoom controls.
+
+### Other locations and uncertainty
+
+Where an authentic downloadable city plan has not been integrated, the game uses an **interwar Polish Military Geographical Institute (WIG) 1:300,000 regional sheet**, clearly labelled as such. These WIG sheets give genuine area geography but **cannot show street-by-street city blocks or individual buildings**. In particular, the Pińsk sheet is not presented as a map of Brześć, nor is the Lwów sheet presented as a map of Tarnopol. For these cities the UI shows a missing-plan state rather than a false street network.
+
+Further documented maps are cited but deliberately **not** bundled without fully cleared reproduction rights or compatible formats:
+
+- [1938 Kraków street plan, Adam Launer / Cartographia Cracoviana](https://dawnemapykrakowa.pl/map/1938-plan-miasta-krakowa/) (1:10,000; the digital copy is marked © Jakub Wojkowski).
+- [1937 Wilno street plan, Podlaska Digital Library](https://pbc.biaman.pl/dlibra/publication/12353/edition/11784) (1:12,500; downloadable PDF, not yet repackaged as a city image).
+- [1939 Białystok city development plan](https://commons.wikimedia.org/wiki/File:Bia%C5%82ystok_general_city_plan_1939_01.jpg) (a proposal, **not proof that all depicted roads and buildings existed**).
+- [1937 Łuck urban planning project](https://jbc.bj.uj.edu.pl/Content/369036/PDF/NDIGCZAS016782_1937_008_009.pdf) (proposed extensions are not historical fact).
+
+Every scanned city map retains its original publication year. An older street plan is never labelled an exact 1940 survey. The existing 15 Warszawa and 10 Łódź individual historical building records remain separately linked and date-restricted. **Those place records are not spatially overlaid over uncalibrated scans**, because their pixel-to-geo alignment has not been verified.
+
+### Packaging
+
+Run `python scripts/fetch-city-plans.py` or the `Bundle historic city plans` GitHub Actions workflow to cache the additional Commons public-domain scans into `assets/maps/city-*.jpg`. `assets/maps/CITY-SOURCES.json` records their original URLs and attribution. The original 1935 Warszawa and c.1938 Łódź files are already in `assets/maps/`.
 
 ## Tests
 
-Run `npm test` in the repository. Tests check source-derived national geometry and licensing notice, 16 selectable region/city windows, deterministic top-down building layers, no runtime image references, bounded camera zoom and preserved historic building whitelist.
+Run `npm test` in the repository. Tests check original-source country polygons, the five verified city scan records, a valid city-map or explicitly absent state for all sixteen centres, no synthetic road/building generation in the active city viewer, bounded camera zoom and the preserved building whitelist.
