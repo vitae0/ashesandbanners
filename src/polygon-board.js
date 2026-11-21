@@ -212,10 +212,12 @@ export function cityPortrait(region,name){
 export class PolygonBoard {
  constructor(host,onChange){
   this.host=host;this.onChange=onChange;this.state=null;this.view="country";this.region="warszawskie";this.town="Warszawa";this.signature="";
+  this.camera={x:0,y:0,w:1350,h:780};this.drag=null;this.suppressClick=false;
   const activate=e=>{
    if(e.type==="keydown"&&!["Enter"," "].includes(e.key))return;
    const target=e.target.closest("[data-region],[data-town],[data-building],[data-map-back],[data-map-home]");
    if(!target||!this.state)return;
+   if(e.type==="click"&&this.suppressClick){this.suppressClick=false;return}
    if(e.type==="keydown")e.preventDefault();
    if(target.dataset.mapHome!==undefined){this.home();return}
    if(target.dataset.mapBack!==undefined){this.home();return}
@@ -228,10 +230,70 @@ export class PolygonBoard {
   };
   host.addEventListener("click",activate);
   host.addEventListener("keydown",activate);
+  host.addEventListener("wheel",e=>{
+   if(this.view!=="country"||!e.target.closest?.(".v-world"))return;
+   e.preventDefault();
+   this.zoomAt(e.deltaY<0?1.16:1/1.16,e.clientX,e.clientY);
+  },{passive:false});
+  host.addEventListener("pointerdown",e=>{
+   if(this.view!=="country"||!e.target.closest?.(".v-world")||e.button!==0)return;
+   this.drag={x:e.clientX,y:e.clientY,moved:0};
+   e.target.setPointerCapture?.(e.pointerId);
+  });
+  host.addEventListener("pointermove",e=>{
+   if(!this.drag||this.view!=="country")return;
+   const dx=e.clientX-this.drag.x,dy=e.clientY-this.drag.y;
+   this.drag.x=e.clientX;this.drag.y=e.clientY;this.drag.moved+=Math.abs(dx)+Math.abs(dy);
+   if(this.drag.moved>6){this.suppressClick=true;this.panBy(dx,dy)}
+  });
+  const release=()=>{
+   this.drag=null;
+   if(this.suppressClick)setTimeout(()=>{this.suppressClick=false},110);
+  };
+  host.addEventListener("pointerup",release);
+  host.addEventListener("pointercancel",release);
  }
- mount(state){this.state=state;this.region=state.selectedRegion||"warszawskie";this.view="country";this.signature="";this.draw()}
+ applyCamera(){
+  const svg=this.host.querySelector?.(".v-world");
+  svg?.setAttribute("viewBox",[this.camera.x,this.camera.y,this.camera.w,this.camera.h].map(n=>n.toFixed(3)).join(" "));
+ }
+ resetCamera(){this.camera={x:0,y:0,w:1350,h:780};this.applyCamera()}
+ zoomAt(factor,clientX,clientY){
+  if(!this.state)return;
+  const old=this.camera,oldZoom=1350/old.w;
+  const newZoom=Math.max(1,Math.min(4,oldZoom*factor));
+  if(Math.abs(newZoom-oldZoom)<1e-6)return;
+  const svg=this.host.querySelector?.(".v-world");
+  let wx=old.x+old.w/2,wy=old.y+old.h/2;
+  if(svg?.createSVGPoint&&svg.getScreenCTM?.()&&Number.isFinite(clientX)&&Number.isFinite(clientY)){
+   const ctm=svg.getScreenCTM();
+   if(ctm){
+    const p=svg.createSVGPoint();p.x=clientX;p.y=clientY;
+    const at=p.matrixTransform(ctm.inverse());wx=at.x;wy=at.y;
+   }
+  }
+  const w=1350/newZoom,h=780/newZoom;
+  const tx=(wx-old.x)/old.w,ty=(wy-old.y)/old.h;
+  this.camera={
+   x:Math.max(0,Math.min(1350-w,wx-tx*w)),
+   y:Math.max(0,Math.min(780-h,wy-ty*h)),w,h
+  };
+  this.applyCamera();
+ }
+ panBy(dx,dy){
+  if(!this.state||this.camera.w>=1350)return;
+  const svg=this.host.querySelector?.(".v-world");
+  const bounds=svg?.getBoundingClientRect?.();
+  const scale=bounds?Math.min(bounds.width/this.camera.w,bounds.height/this.camera.h):1;
+  if(!scale||!Number.isFinite(scale))return;
+  const c=this.camera;
+  c.x=Math.max(0,Math.min(1350-c.w,c.x-dx/scale));
+  c.y=Math.max(0,Math.min(780-c.h,c.y-dy/scale));
+  this.applyCamera();
+ }
+ mount(state){this.state=state;this.region=state.selectedRegion||"warszawskie";this.view="country";this.signature="";this.resetCamera();this.draw()}
  update(state){this.state=state;this.draw()}
- home(){this.view="country";this.state.selectedBuilding=null;this.draw();this.onChange(this.state,{type:"home"})}
+ home(){this.view="country";this.state.selectedBuilding=null;this.resetCamera();this.draw();this.onChange(this.state,{type:"home"})}
  back(){this.home()}
  focusRegion(id){if(!CAPITALS[id])return;this.focusTown(CAPITALS[id][0],id)}
  focusTown(name,id=this.region){
@@ -250,8 +312,8 @@ export class PolygonBoard {
   if(sig===this.signature)return;
   this.signature=sig;
   const showHeat=this.state.settings.showInfluence;
-  this.host.innerHTML='<div class="v-map-root '+(showHeat?"show-influence":"no-influence")+'">'+countrySvg(this.state,this.state.selectedRegion)+
-    '<div class="v-map-watermark">• İl merkezine tıklayın •</div>'+
+  this.host.innerHTML='<div class="v-map-root '+(showHeat?"show-influence":"no-influence")+'">'+countrySvg(this.state,this.state.selectedRegion,this.camera)+
+    '<div class="v-map-watermark">Fare tekerleği: yakınlaştır · sürükle: gezin · azami 4×</div>'+
     (this.view==="town"?this.cityWindow():"")+'</div>';
  }
  cityWindow(){
