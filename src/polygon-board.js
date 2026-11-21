@@ -6,7 +6,7 @@
  * All live maps are SVG polygon geometry; no raster maps appear on screen.
  */
 import {REGION_DATA,INSTITUTIONS} from "./engine.js";
-import {cityBuildings} from "./period-board.js";
+import {cityBuildings} from "./city-buildings.js";
 import {HISTORICAL_COUNTRIES,HISTORICAL_YEAR} from "./historical-geometry.js";
 import {cityMapRecord,HISTORICAL_CITY_REFERENCES} from "./historical-city-plans.js";
 import {HISTORICAL_CITY_VECTORS} from "./historical-city-vectors.js";
