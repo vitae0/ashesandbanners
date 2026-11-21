@@ -20,7 +20,7 @@ OUT = Path("src/historical-geometry.js")
 BBOX = box(6.0, 45.0, 37.7, 59.5)
 YEAR = 1938
 MATCH = re.compile(
-    r"poland|german|reich|soviet|russia|roman|hungar|czechoslovak|czech|slovak|"
+    r"poland|polish|german|reich|soviet|russia|roman|hungar|czechoslovak|czech|slovak|"
     r"lithuan|latvia|eston|denmark|swed|finland|austria|yugoslav|switzerland|"
     r"italy|danzi|free city|bohemia|prussia",
     re.I,
@@ -86,7 +86,7 @@ def main():
         countries.append({"name": name, "rings": rings})
     country_names = [c["name"] for c in countries]
     print("Year:", YEAR, "country polygons:", len(countries), "names:", country_names)
-    if not any("poland" in n.lower() for n in country_names):
+    if not any(("poland" in n.lower() or "polish" in n.lower()) for n in country_names):
         raise RuntimeError("A Poland polygon was not found for 1938. Refusing to publish bad data.")
     output = (
         "// Generated from Seshat Global History Databank Cliopatria, 1938. CC BY 4.0.\n"
