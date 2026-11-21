@@ -436,6 +436,7 @@ export class PolygonBoard {
   this.host.innerHTML='<div class="v-map-root '+(showHeat?"show-influence":"no-influence")+'">'+countrySvg(this.state,this.state.selectedRegion,this.camera)+
     '<div class="v-map-watermark">Fare tekerleği: yakınlaştır · sürükle: gezin · azami 4×</div>'+
     (this.view==="town"?this.cityWindow():"")+'</div>';
+  if(this.view==="town")this.applyCityCamera();
  }
  cityWindow(){
   const id=this.region,cap=CAPITALS[id],info=regionById[id];
