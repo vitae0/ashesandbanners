@@ -42,6 +42,7 @@ export const MILESTONES = [
  {id:"liaison",name:"Dış Bağlantılar",date:"1941-04-01",requires:"≥ 8 hücre ve ≥ 38 istihbarat",test:s=>activeCells(s).length>=8&&s.intel>=38,description:"Dış merkezlerle sürekli haberleşme kanalları üzerine tartışma.",unlock:"Dış temas olayları ve haberleşme operasyonları açılır."},
  {id:"east",name:"Doğu Cephesinin Açılması",date:"1941-06-22",requires:"Barbarossa başlamış, 1 istihbarat operasyonu başarılı",test:s=>s.war.started&&s.successful.intelligence>=1,description:"Alman-Sovyet savaşı yeraltı politikasının bütün dengelerini değiştirdi.",unlock:"Doğu cephesine ilişkin olaylar ve cephe gerisi harekâtlar açılır."},
  {id:"left_network",name:"Bağımsız Sol Yeraltı Kongresi",date:"1942-01-05",requires:"Siyasi konsey ve sol kanat desteği ≥ 30",test:s=>s.milestones.includes("council")&&s.politics.left>=30,description:"1942'de Gwardia Ludowa çevresindeki yeni hareketlerle ilişkiler tartışılıyor.",unlock:"1944'ten itibaren iki alternatif Armia Ludowa yolu açılır."},
+ {id:"early_al",name:"Erken Armia Ludowa Kongresi (ALTERNATİF TARİH)",date:"1942-03-28",requires:"Alternatif tarih; sol kongre; komünist destek ≥ 65; en az 10 hücre",test:s=>s.settings.history==="alternate"&&s.milestones.includes("left_network")&&s.politics.left>=65&&activeCells(s).length>=10,description:"Tarihte 1944'te kurulan AL, alternatif tarihte güçlü komünist çevrelerin erken kongresiyle 1942'de açılabilir.",unlock:"1942'de bağımsız ve Sovyet bağlantılı AL yolu açılır; bu açıkça tarihsel sapmadır."},
  {id:"uprising",name:"Genel Ayaklanma Tasarısı",date:"1943-01-01",requires:"≥ 350 üye, 4 bölgede etki ≥ 40, meşruiyet ≥ 65",test:s=>members(s)>=350&&Object.values(s.regions).filter(r=>r.influence>=40).length>=4&&s.legitimacy>=65,description:"Açık ayaklanmanın bedeli ve siyasi egemenlik ihtimali masada.",unlock:"Bağımsız kurtuluş için koşullu tarihsel sapma sonu mümkün."},
  {id:"liberation",name:"Bağımsızlık Beyanı",date:"1943-06-01",requires:"Ayaklanma tasarısı, ≥ 600 üye, 5 bölgede etki ≥ 70, Alman gerilemesi",test:s=>s.milestones.includes("uprising")&&members(s)>=600&&Object.values(s.regions).filter(r=>r.influence>=70).length>=5&&s.war.started&&s.war.germanAdvance<42,description:"Ülkenin geleceği artık yalnızca bir dış ordunun ilerleyişine bağlı olmayabilir.",unlock:"Beyan, alternatif tarih modunda erken bağımsızlık sonunu açar."}
 ];
@@ -100,7 +101,7 @@ export function createGame(config={}){
  const seed=((Number(settings.seed)||Math.floor(Math.random()*2147483646))>>>0)||1;
  const regions=Object.fromEntries(REGION_DATA.map(([id,name,lat,lon,support,religion,pop])=>[id,{id,name,lat,lon,support,influence:clamp(support*.56),heat:12,security:55,religion,pop,occupied:"Axis"}]));
  const cells=CELL_TEMPLATE.map(([id,name,region,members,stealth,intel,logistics,field])=>({id,name,region,members,stealth,intel,logistics,field,leadership:42,exposure:8,fatigue:0,commander:null,order:"recruit",busyUntil:null,destroyed:false}));
- const s={version:1,date:"1940-01-01",ticks:0,seed,settings,regions,cells,assets:[],operations:[],funds:Math.round(200*settings.resources/100),supplies:Math.round(25*settings.resources/100),intel:28,legitimacy:40,morale:65,alert:12,politics:{left:15,london:34,officers:32,autonomy:19,path:null},centralization:3,milestones:[],eventsSeen:[],pendingEvent:null,nextEvent:12,war:{started:false,germanAdvance:0,phase:"Savaş öncesi",sovietVictory:null,sabotagePressure:0,armyMomentum:0},successful:{intelligence:0,rail:0,total:0},records:{successful:0,failed:0,arrests:0,days:0,restarts:0},status:"running",ending:null,selectedRegion:"mazowieckie",selectedDistrict:"",selectedBuilding:null,log:[]};
+ const s={version:1,date:"1940-01-01",ticks:0,seed,settings,regions,cells,assets:[],operations:[],funds:Math.round(200*settings.resources/100),supplies:Math.round(25*settings.resources/100),intel:28,legitimacy:40,morale:65,alert:12,politics:{left:15,london:34,officers:32,autonomy:19,socialists:28,rural:24,nationalists:18,contacts:{},path:null},centralization:3,milestones:[],eventsSeen:[],pendingEvent:null,nextEvent:12,war:{started:false,germanAdvance:0,phase:"Savaş öncesi",sovietVictory:null,sabotagePressure:0,armyMomentum:0},successful:{intelligence:0,rail:0,total:0},records:{successful:0,failed:0,arrests:0,days:0,restarts:0},status:"running",ending:null,selectedRegion:"mazowieckie",selectedDistrict:"",selectedBuilding:null,log:[]};
  s.war.sovietVictory= settings.history==="historical" ? true : rand(s)<.8;
  entry(s,"Yedi hücre örgütlendi. Varşova merkezli yeraltı ağı faaliyete başladı.","story");
  entry(s,"Not: Bölge ve bina coğrafyası güncel OSM/modern idari harita altlığıdır; 1940 hudutları değildir.","info");
@@ -115,11 +116,18 @@ export function approveMilestone(s,id){
  s.milestones.push(id);entry(s,"Dönüm noktası onaylandı: "+m.name+". "+m.unlock,"story");
  if(id==="founding")s.legitimacy=clamp(s.legitimacy+3);
  if(id==="council")s.pendingEvent={id:"council_debate",title:"Gizli Siyasi Konsey",text:"Komutanlar, subaylar ve sivil temsilciler örgütün dış merkezlere bağlılığı üzerine açıkça ayrışıyor.",choices:[{name:"Askerî koordinasyonu koru",effect:"officers"},{name:"Sivil katılımı genişlet",effect:"left"}]};
+ if(id==="early_al")s.pendingEvent={id:"early_al_debate",title:"1942: Erken Armia Ludowa (alternatif tarih)",text:"Tarihsel AL 1944'te kuruldu. Bu oyun dünyasında güçlenen komünist ağlar 1942'de yeni bir örgütün ilanını mümkün kıldı.",choices:[{name:"Erken AL kongresini destekle",effect:"left"},{name:"Müzakereleri sürdür",effect:"caution"}]};
  if(id==="liberation"&&s.settings.history==="alternate")s.pendingEvent={id:"liberation_plebiscite",title:"Bağımsızlık eşiği",text:"Geniş bir yeraltı tabanı, silahlı ayaklanmadan önce siyasal meşruiyet ve sivil kayıp riskinin değerlendirilmesini istiyor.",choices:[{name:"Bağımsızlık bildirisi yayımla",effect:"independence"},{name:"Şimdi değil, örgütü koru",effect:"restraint"}]};
  return {ok:true};
 }
 export function pathAvailable(s,p){
- return s.milestones.includes(p.needs)&&after(s,p.date);
+ if(!s.milestones.includes(p.needs))return false;
+ if(s.settings.history==="historical"&&(p.id==="ak_independent"||p.id==="al_independent"))return false;
+ if(p.id.startsWith("al")){
+   if(s.settings.history==="alternate"&&s.milestones.includes("early_al")&&after(s,"1942-03-28"))return true;
+   return after(s,"1944-01-01")&&s.politics.left>=40;
+ }
+ return after(s,p.date);
 }
 export function setPath(s,id){
  const p=PATHS.find(x=>x.id===id);
@@ -243,9 +251,13 @@ const EVENTS = [
  {id:"reprisal",title:"Misilleme tehdidi",text:"Bir garnizon, yerel sivillere yönelik cezalandırma duyuruları yayımlıyor. Açık eylem sivil riski artıracak.",choices:[{name:"Sivil koruma örgütle",effect:"aid"},{name:"Geçici olarak geri çekil",effect:"caution"}]}
 ];
 const HISTORICAL = [
+ ["pkp","1940-02-01","PKP: Gizli Siyasi Temsil","Şubat 1940'ta Polityczny Komitet Porozumiewawczy siyasi koordinasyon için oluştu.",[{name:"Temsil görüşmelerine katıl",effect:"london"},{name:"Yerel özerkliği koru",effect:"officers"}]],
+ ["chlostra","1940-08-01","Köylü hareketinde silahlı örgütlenme","Ağustos 1940'ta Chłopska Straż çevreleri güçleniyor. Bataliony Chłopskie adı daha sonra yaygınlaşır.",[{name:"Köylü ağıyla dayanış",effect:"aid"},{name:"Askerî disipline odaklan",effect:"officers"}]],
+ ["delegatura","1940-12-01","Hükümet Delegasyonu","Delegatura Rządu na Kraj işgal altındaki ülkede sivil siyasi temsil için kuruluyor.",[{name:"Bağ kur",effect:"london"},{name:"Özerk kal",effect:"caution"}]],
  ["barbarossa","1941-06-22","Barbarossa Harekâtı","Almanya Sovyetler Birliği'ne saldırdı. Doğu Cephesi açılıyor. Sovyet yanlısı ve Londra yanlısı kanatlar karşılıklı kuşku içinde.",[{name:"Cephe istihbaratı kur",effect:"investigate"},{name:"Sivil kayıplara odaklan",effect:"aid"}]],
  ["homearmy","1942-02-14","ZWZ'den Armia Krajowa'ya","Sürgün hükümeti ZWZ adının Armia Krajowa olarak değiştirilmesini ilan etti. Bu, örgüt içi ilişkilerde yeni tartışmalar yaratıyor.",[{name:"Haberleşme ve koordinasyon kur",effect:"london"},{name:"Yerel komuta özerkliğini savun",effect:"officers"}]],
- ["gl","1942-01-05","Yeni sol yeraltı ağları","Polonya İşçi Partisi ve Gwardia Ludowa çevresinde yeni örgütlenmeler oluşuyor. Bunlar ZWZ/AK ile aynı kurum değil.",[{name:"Diyalog kanalı aç",effect:"left"},{name:"Örgütsel bağımsızlıkta ısrar et",effect:"officers"}]],
+ ["ppr","1942-01-05","Polska Partia Robotnicza kuruldu","PPR şimdi kuruldu. Komünist Gwardia Ludowa 28 Mart 1942'den önce mevcut değildi; 1939'daki GL PPS–WRN ise farklıdır.",[{name:"Diyalog kanalı aç",effect:"left"},{name:"Örgütsel bağımsızlıkta ısrar et",effect:"officers"}]],
+ ["gl_ppr","1942-03-28","Gwardia Ludowa (PPR) kuruldu","Komünist PPR'nin Gwardia Ludowa'sı oluştu. 1939'daki PPS–WRN'nin aynı isimli örgütüyle karıştırılmamalı.",[{name:"Sol direnişle görüş",effect:"left"},{name:"Yerel komutayı koru",effect:"officers"}]],
  ["al","1944-01-01","Armia Ludowa'nın kuruluşu","Gwardia Ludowa, Armia Ludowa adı altında yeniden örgütleniyor. Dört yol ancak alternatif tarih siyasetinde birer seçim olabilir.",[{name:"Sol direnişle görüş",effect:"left"},{name:"Mevcut bağları koru",effect:"caution"}]],
  ["uprising1944","1944-08-01","Varşova Ayaklanması","Varşova'da büyük ayaklanma başladı. Oyunun alternatif tarihi bu olayı ve sonuçlarını değiştirebilir.",[{name:"Sivil halkı korumayı önceliklendir",effect:"aid"},{name:"Siyasi temsil konseyini topla",effect:"officers"}]]
 ];
