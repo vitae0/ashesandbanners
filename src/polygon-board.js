@@ -7,6 +7,7 @@
  */
 import {REGION_DATA,INSTITUTIONS} from "./engine.js";
 import {cityBuildings} from "./period-board.js";
+import {HISTORICAL_COUNTRIES,HISTORICAL_YEAR} from "./historical-geometry.js";
 import {getVerifiedSite,buildingStatusAt} from "./verified-sites.js";
 
 const esc = v => String(v ?? "").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -91,8 +92,24 @@ const CITY_MODE = {
 };
 const regionById = Object.fromEntries(REGION_DATA.map(d=>[d[0],d]));
 function polyPath(coords,cls,attrs=""){return '<polyline points="'+shape(coords)+'" class="'+cls+'" '+attrs+'/>'}
-export function countrySvg(state,selected){
- const country=NEIGHBORS.map(([label,coords,color,anchor])=>polygon(coords,"v-country",'fill="'+color+'"')+txt(anchor[0],anchor[1],label,"v-country-label")).join("");
+export function countrySvg(state,selected,camera={x:0,y:0,w:1350,h:780}){
+ // Prefer documented 1938 EPSG:4326 country polygons, bundled locally from Cliopatria.
+ // Fallback is the old hand-drawn atlas only when the optional data build is absent.
+ const poland=HISTORICAL_COUNTRIES.find(c=>/^poland$/i.test(c.name))||
+   HISTORICAL_COUNTRIES.find(c=>/poland/i.test(c.name));
+ const sourced=Boolean(poland?.rings?.length);
+ const polandRings=sourced?poland.rings:[POLAND_1939];
+ const countryColors=name=>/german|reich|prussia/i.test(name)?"#425565":
+  /soviet|russia/i.test(name)?"#5e5366":/romania/i.test(name)?"#656c60":
+  /hungary/i.test(name)?"#736657":/lithuania/i.test(name)?"#516b68":
+  /latvia|estonia/i.test(name)?"#4e626b":/slovak|czecho/i.test(name)?"#61716c":"#576b70";
+ const country=sourced?
+   HISTORICAL_COUNTRIES.filter(c=>c!==poland).map(c=>c.rings.map(ring=>polygon(ring,"v-country",'fill="'+countryColors(c.name)+'"')).join("")).join("")+
+   NEIGHBORS.map(([label,, ,anchor])=>txt(anchor[0],anchor[1],label,"v-country-label")).join(""):
+   NEIGHBORS.map(([label,coords,color,anchor])=>polygon(coords,"v-country",'fill="'+color+'"')+txt(anchor[0],anchor[1],label,"v-country-label")).join("");
+ const polandOutline=polandRings.map(ring=>polygon(ring,"v-poland-base")).join("");
+ const polandFrontier=polandRings.map(ring=>polygon(ring,"v-frontier")).join("");
+ const sourceLabel=sourced?"CC BY 4.0 · Cliopatria "+HISTORICAL_YEAR:"Temsilî sınır · tarihsel veri hazırlanıyor";
  const zones=SECTORS.map(z=>polygon(z.points,"v-zone",'fill="'+z.fill+'"')).join("");
  const guides=PROVINCE_GUIDES.map(coords=>polyPath(coords,"v-province-guide")).join("");
  const marker=REGION_DATA.map(([id,name])=>{
@@ -109,20 +126,20 @@ export function countrySvg(state,selected){
    '<text x="'+(x(lon)+dx).toFixed(1)+'" y="'+(y(lat)-10).toFixed(1)+'" text-anchor="'+anchor+'" class="v-city-name">'+esc(city)+'</text>'+
    '</g>';
  }).join("");
- return '<svg class="v-world" viewBox="0 0 1350 780" role="img" aria-label="1939 Polonya ve komşuları: elle çizilmiş yaklaşık SVG poligon haritası">'+
+ return '<svg class="v-world" viewBox="'+[camera.x,camera.y,camera.w,camera.h].map(v=>Number(v).toFixed(2)).join(" ")+'" role="img" aria-label="1939 Polonya ve komşuları: tarihsel vektör sınırları">'+
   '<defs><pattern id="v-grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" stroke="#ffffff" stroke-opacity=".04"/></pattern>'+
-  '<clipPath id="v-poland-clip">'+polygon(POLAND_1939,"")+'</clipPath></defs>'+
+  '<clipPath id="v-poland-clip">'+polandRings.map(ring=>polygon(ring,"")).join("")+'</clipPath></defs>'+
   '<rect width="1350" height="780" fill="#293b48"/><rect width="1350" height="780" fill="url(#v-grid)"/>'+
-  country+polygon(POLAND_1939,"v-poland-base")+
+  country+polandOutline+
   '<g clip-path="url(#v-poland-clip)">'+zones+guides+'</g>'+
-  polygon(POLAND_1939,"v-frontier")+
+  polandFrontier+
   txt(21.7,51.4,"GENERALGOUVERNEMENT","v-zone-title",'text-anchor="middle"')+
   txt(25.9,52.15,"SSCB","v-zone-title",'text-anchor="middle"')+
   txt(17.3,52.15,"REICH","v-zone-title",'text-anchor="middle"')+
   txt(21.6,53.28,"POLSKA 1939","v-prewar-label",'text-anchor="middle"')+
   marker+
   '<g class="v-compass" transform="translate(1259 692)"><circle r="30"/><path d="M0-23L7 0 0 23 -7 0Z"/><text x="0" y="-39" text-anchor="middle">N</text></g>'+
-  '<g class="v-map-note"><rect x="22" y="17" width="350" height="59" rx="6"/><text x="36" y="41">POLONYA VE ORTA AVRUPA</text><text x="36" y="61">1939 sınırı / Ocak 1940 işgal bölgeleri · temsili</text></g>'+
+  '<g class="v-map-note"><rect x="22" y="17" width="360" height="59" rx="6"/><text x="36" y="41">POLONYA VE ORTA AVRUPA</text><text x="36" y="61">'+esc(sourceLabel)+' / Ocak 1940 işgal katmanı</text></g>'+
   '</svg>';
 }
 function seedFor(str){let h=2166136261;for(const c of str){h=Math.imul(h^c.charCodeAt(0),16777619)}return h>>>0}
