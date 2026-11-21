@@ -62,7 +62,7 @@ function overview(){
  let bcontent='<p class="readout">İl, yerleşim ve temsilî yapı seçin. Konutlar hücre evi; okul, kilise ve hastane gibi kurumlar yerel bağlantı olabilir.</p>';
  if(building){
   const claimed=s.assets.some(a=>a.osmId===building.osmId);
-  bcontent='<div class="panel tight"><b>'+esc(building.name)+'</b><p class="smalltext">Temsilî dönem yapısı • '+esc(building.osmId)+' • Görünürlük: '+fmt(building.visibility*100)+'%</p>'
+  bcontent='<div class="panel tight"><b>'+esc(building.name)+'</b><p class="smalltext">Tarihsel yer noktası • '+esc(building.osmId)+' • Görünürlük: '+fmt(building.visibility*100)+'%</p>'
    +(claimed?'<span class="badge good">Ağa katılmış</span>':'<div class="selectrow"><select id="asset-kind">'+building.allowed.map(v=>'<option value="'+v+'">'+esc(INSTITUTIONS[v].name)+' • '+INSTITUTIONS[v].price+' para</option>').join("")+'</select>'+btn("Bağlantı kur","claim")+'</div>')+'</div>';
  }
  return heading("ÖRGÜT RAPORU","Yeraltı Genel Merkezi","Örgüt devlet değil. Sivil destek, hücreler, gizlilik ve bağlantılarla güçlenirsiniz.")
@@ -147,7 +147,7 @@ function initMap(){
    render();save();
  });
  map.mount(s);
- $("map-status").textContent="Polonya 1939 • çevrimdışı dönem haritası";
+ $("map-status").textContent="1939 savaş öncesi arşiv haritası • 1940 egemenlik sınırları değildir";
 }
 function exportSave(){
  const blob=new Blob([JSON.stringify(s,null,2)],{type:"application/json"}),url=URL.createObjectURL(blob),a=document.createElement("a");
