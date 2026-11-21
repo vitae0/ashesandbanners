@@ -3,9 +3,11 @@ import assert from "node:assert/strict";
 import {
  createGame,advanceDays,after,activeCells,members,MILESTONES,PATHS,
  canMilestone,approveMilestone,pathAvailable,setPath,scheduleOperation,bestCell,
- assetEffects,INSTITUTIONS,institutionRaidRisk,regroup,validateSave,setCentralization,assignCommander
+ assetEffects,INSTITUTIONS,institutionRaidRisk,regroup,validateSave,setCentralization,assignCommander,migrateSave,REGION_DATA
 } from "../src/engine.js";
 import {currentOrganizations,contactFaction,politicalIdentity,earlyALStatus} from "../src/politics.js";
+import {MAP_POINTS,CELLS,HISTORIC_LOCATIONS} from "../src/period-map-data.js";
+import {cityBuildings} from "../src/period-board.js";
 const setup=(x={})=>createGame({seed:123456,...x});
 test("1940 does not contain AK, PPR, PPR GL or AL",()=>{
  const s=setup();const ids=currentOrganizations(s).map(x=>x.id);
@@ -60,14 +62,14 @@ test("political contact has cost and 28 day cooldown",()=>{
  s.ticks+=28;s.date="1940-01-29";assert.equal(contactFaction(s,"left").ok,true);
 });
 test("church institution boosts are bounded by diminishing returns",()=>{
- const s=setup(),r="mazowieckie",base=assetEffects(s,r).support;
+ const s=setup(),r="warszawskie",base=assetEffects(s,r).support;
  for(let i=0;i<100;i++)s.assets.push({id:"a"+i,osmId:"way/"+i,region:r,type:"church",visibility:60});
  const full=assetEffects(s,r).support;
  assert.ok(full>base);assert.ok(full<2);
 });
 test("more visible institutions face higher raid risk",()=>{
  const state=setup();
- const base={id:"a",region:"mazowieckie",visibility:10,type:"safehouse"};
+ const base={id:"a",region:"warszawskie",visibility:10,type:"safehouse"};
  const low=institutionRaidRisk(state,base);
  const high=institutionRaidRisk(state,{...base,visibility:90});
  assert.ok(high>low);
@@ -89,4 +91,35 @@ test("regroup offers a fresh reduced cell network after suppression",()=>{
 test("saving schema validates",()=>{
  const s=setup();assert.equal(validateSave(s),true);
  assert.equal(validateSave({version:1,date:"bad"}),false);
+});
+
+test("period atlas lists historical provinces including former eastern Poland",()=>{
+ const ids=REGION_DATA.map(r=>r[0]);
+ assert.equal(ids.length,16);
+ for(const id of ["warszawskie","wilenskie","wolynskie","poleskie","lwowskie","tarnopolskie"]){
+  assert.ok(ids.includes(id));assert.ok(CELLS.some(c=>c.id===id&&c.vertices.length>=3));
+  assert.ok(HISTORIC_LOCATIONS[id].length>=4);
+ }
+ for(const id of ["mazowieckie","malopolskie","podkarpackie"])assert.ok(!ids.includes(id));
+});
+test("schematic city blocks have stable building identifiers and bounded visibility",()=>{
+ const a=cityBuildings("warszawskie","Warszawa"),b=cityBuildings("warszawskie","Warszawa");
+ assert.equal(a.length,24);
+ assert.equal(JSON.stringify(a),JSON.stringify(b));
+ for(const site of a){assert.ok(site.osmId.startsWith("period/"));assert.ok(site.visibility>=0&&site.visibility<=1)}
+ assert.ok(a.some(site=>site.allowed.includes("safehouse")));
+ assert.ok(a.some(site=>site.allowed.includes("school")));
+});
+test("legacy 2017-style saves migrate to historical province identifiers",()=>{
+ const legacy=setup();legacy.version=1;
+ legacy.regions.mazowieckie={...legacy.regions.warszawskie};
+ delete legacy.regions.warszawskie;
+ legacy.cells[0].region="mazowieckie";
+ legacy.selectedRegion="mazowieckie";
+ const migrated=migrateSave(legacy);
+ assert.equal(migrated.version,2);
+ assert.equal(migrated.selectedRegion,"warszawskie");
+ assert.equal(migrated.cells[0].region,"warszawskie");
+ assert.equal(migrated.assets.length,0);
+ assert.equal(validateSave(migrated),true);
 });
