@@ -21,6 +21,29 @@ SOURCE = [
     ("lodz-1938.jpg", "Plan wojewodzkiego miasta Lodzi. ca 1938 (35842453).jpg", 1280,
      "https://commons.wikimedia.org/wiki/File:Plan_wojewodzkiego_miasta_Lodzi._ca_1938_(35842453).jpg", "Public domain"),
 ]
+
+
+REGIONAL = [
+ ("pomorskie", "WIG Mapa Operacyjna Polski - 44 Toruń 1933.jpg",1933),
+ ("poznanskie", "WIG Mapa Operacyjna Polski - 53 Poznań 1935.jpg",1935),
+ ("warszawskie", "WIG Mapa Operacyjna Polski - 55 Warszawa 1933.jpg",1933),
+ ("lodzkie", "WIG Mapa Operacyjna Polski - 64 Łódź 1936.jpg",1936),
+ ("kieleckie", "WIG Mapa Operacyjna Polski - 75 Kielce 1928.jpg",1928),
+ ("slaskie", "WIG Mapa Operacyjna Polski - 84 Cieszyn 1934.jpg",1934),
+ ("krakowskie", "WIG Mapa Operacyjna Polski - 74 Kraków 1925.jpg",1925),
+ ("lubelskie", "WIG Mapa Operacyjna Polski - 66 Lublin 1932.jpg",1932),
+ ("bialostockie", "WIG Mapa Operacyjna Polski - 46 Białystok 1929.jpg",1929),
+ ("nowogrodzkie", "WIG Mapa Operacyjna Polski - 47 Nowogródek 1928 1931.jpg",1931),
+ ("wilenskie", "WIG Mapa Operacyjna Polski - 37 Wilno 1930.jpg",1930),
+ ("poleskie", "WIG Mapa Operacyjna Polski - 57 Pińsk 1933.jpg",1933),
+ ("wolynskie", "WIG Mapa Operacyjna Polski - 77 Łuck 1928.jpg",1928),
+ ("lwowskie", "WIG Mapa Operacyjna Polski - 86 Lwów 1928.jpg",1928),
+ ("stanislawowskie", "WIG Mapa Operacyjna Polski - 97 Stanisławów-Czerniowce (Cernauti) 1930.jpg",1930)
+]
+for region, title, year in REGIONAL:
+    SOURCE.append(("wig-"+region+".jpg",title,1600,
+                   "https://commons.wikimedia.org/wiki/File:"+urllib.parse.quote(title), 
+                   "Public domain; WIG original operational chart "+str(year)))
 def download(target, original, width):
     # Commons thumbnail redirect. Avoid 40+ MB originals; request a modest preview.
     candidates=[
