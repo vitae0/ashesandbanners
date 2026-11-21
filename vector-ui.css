@@ -152,3 +152,23 @@ body { background:#101b21; }
  .game .map-toolbar small {display:none}
  .game .map-legend {min-height:27px;font-size:9px}
 }
+
+
+/* Zoomable political atlas and orthographic roof-plan city views. */
+.v-world {touch-action:none;cursor:grab}
+.v-world:active {cursor:grabbing}
+.v-map-root .v-marker,.v-map-root .v-marker:active {cursor:pointer}
+.game #map-zoom-in,.game #map-zoom-out {min-width:28px;font-size:18px;font-weight:700;padding:3px 5px;background:#253743;color:#f4ebd3}
+.game #map-home {font-weight:700}
+.v-city-overhead {width:100%;height:100%;min-height:340px;object-fit:contain;background:#91a58c;image-rendering:auto}
+.v-city-art {min-height:360px;align-items:stretch;justify-content:center;overflow:hidden}
+.v-city-overhead .v-building {filter:drop-shadow(1px 2px 1px #33443b48)}
+.v-city-overhead .v-field {stroke-linejoin:bevel}
+.v-city-overhead .v-lot {stroke:#a4a68f;stroke-width:1}
+.v-city-overhead .v-road {stroke:#4c6563;stroke-width:.6}
+.v-city-overhead .v-road-line {stroke:none}
+.v-city-overhead .v-garden {stroke:#7e9a78;stroke-width:1}
+.v-city-overhead .v-map-tiny {font:8px system-ui,sans-serif;fill:#565f4c;letter-spacing:1.2px}
+.v-city-illustration-label {fill:#eee4c9;stroke:none;font:700 12px system-ui,sans-serif;letter-spacing:1px}
+.v-village-label {fill:#263b35;stroke:#d4dcbb;stroke-width:2;paint-order:stroke;font:700 10px system-ui,sans-serif}
+@media(max-width:800px){.v-city-art {min-height:260px}.v-city-overhead{min-height:245px}}
