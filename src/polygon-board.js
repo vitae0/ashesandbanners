@@ -1,9 +1,9 @@
 
 /**
- * Approximate, entirely hand-authored polygon atlas for the January 1940 scenario.
- * Not a georeferenced map. The 1939 frontier, 1940 occupation sectors, voivodeship
- * guides and symbolic city buildings have different historical accuracy levels.
- * All geometry is SVG built locally; no images, tiles, OSM or network requests.
+ * Source-based border atlas with date-labelled, licensed archival city scans.
+ * Imported 1938 historical borders, approximate 1940 occupation sectors,
+ * and individual 1921–39 street plan scans have distinct accuracy grades.
+ * Strategic territory is SVG; city plans are true document facsimiles.
  */
 import {REGION_DATA,INSTITUTIONS} from "./engine.js";
 import {cityBuildings} from "./period-board.js";
@@ -85,12 +85,6 @@ export const CAPITALS = Object.freeze({
  wolynskie:["Łuck",50.747,25.325],lwowskie:["Lwów",49.840,24.031],
  tarnopolskie:["Tarnopol",49.554,25.595],stanislawowskie:["Stanisławów",48.922,24.710]
 });
-const CITY_MODE = {
- lodzkie:"industrial",slaskie:"industrial",pomorskie:"port",poznanskie:"urban",
- warszawskie:"capital",krakowskie:"historic",wilenskie:"historic",lwowskie:"historic",
- kieleckie:"rural",lubelskie:"rural",bialostockie:"rural",poleskie:"rural",
- nowogrodzkie:"rural",wolynskie:"rural",tarnopolskie:"rural",stanislawowskie:"rural"
-};
 const regionById = Object.fromEntries(REGION_DATA.map(d=>[d[0],d]));
 function polyPath(coords,cls,attrs=""){return '<polyline points="'+shape(coords)+'" class="'+cls+'" '+attrs+'/>'}
 export function countrySvg(state,selected,camera={x:0,y:0,w:1350,h:780}){
@@ -142,153 +136,6 @@ export function countrySvg(state,selected,camera={x:0,y:0,w:1350,h:780}){
   '<g class="v-compass" transform="translate(1259 692)"><circle r="30"/><path d="M0-23L7 0 0 23 -7 0Z"/><text x="0" y="-39" text-anchor="middle">N</text></g>'+
   '<g class="v-map-note"><rect x="22" y="17" width="360" height="59" rx="6"/><text x="36" y="41">POLONYA VE ORTA AVRUPA</text><text x="36" y="61">'+esc(sourceLabel)+' / Ocak 1940 işgal katmanı</text></g>'+
   '</svg>';
-}
-function seedFor(str){let h=2166136261;for(const c of str){h=Math.imul(h^c.charCodeAt(0),16777619)}return h>>>0}
-function randomFor(str){let v=seedFor(str);return ()=>{v=(Math.imul(v,1664525)+1013904223)>>>0;return v/4294967296}}
-function house(x0,y0,w,h,tone,kind,idx){
- const dark="#3d4650",roof="#9a5d4c",roof2="#655668",cement="#b7aa90";
- const top=y0-h,edge= Math.max(6,w*.22);
- const face='<polygon points="'+[[x0,top],[x0+w,top],[x0+w,y0],[x0,y0]].map(p=>p.join(",")).join(" ")+'" fill="'+tone+'" stroke="#333b46" stroke-width="1.5"/>';
- const side='<polygon points="'+[[x0+w,top],[x0+w+edge,top-edge*.42],[x0+w+edge,y0-edge*.42],[x0+w,y0]].map(p=>p.join(",")).join(" ")+'" fill="#6a6870" stroke="#333b46" stroke-width="1.1"/>';
- let topShape='<polygon points="'+[[x0-4,top],[x0+w+1,top],[x0+w+edge+5,top-edge*.42],[x0+edge-2,top-edge*.42]].map(p=>p.join(",")).join(" ")+'" fill="'+(idx%3?roof:roof2)+'" stroke="#3d4245" stroke-width="1.6"/>';
- if(kind==="house"||kind==="farm")topShape='<polygon points="'+[[x0-5,top],[x0+w/2,top-20],[x0+w+5,top],[x0+w/2,top-5]].map(p=>p.join(",")).join(" ")+'" fill="'+roof+'" stroke="#3b3734" stroke-width="2"/>';
- let windows="";
- const n=Math.max(1,Math.floor(w/22));const levels=Math.max(1,Math.floor(h/25));
- for(let r=0;r<levels;r++)for(let c=0;c<n;c++){
-  let wx=x0+(c+0.6)*w/(n+0.25),wy=top+(r+.55)*h/(levels+.25);
-  windows+='<polygon points="'+wx.toFixed(1)+','+wy.toFixed(1)+' '+(wx+6).toFixed(1)+','+wy.toFixed(1)+' '+(wx+6).toFixed(1)+','+(wy+9).toFixed(1)+' '+wx.toFixed(1)+','+(wy+9).toFixed(1)+'" fill="'+(idx%4===0?"#d3ba81":dark)+'"/>';
- }
- let feature="";
- if(kind==="factory"){
-   feature='<polygon points="'+(x0+w*.78)+','+(top-6)+' '+(x0+w*.91)+','+(top-6)+' '+(x0+w*.89)+','+(top-65)+' '+(x0+w*.81)+','+(top-65)+'" fill="#68565b" stroke="#333b46" stroke-width="2"/>';
- }
- if(kind==="church"){
-   feature='<polygon points="'+(x0+w*.37)+','+top+' '+(x0+w*.63)+','+top+' '+(x0+w*.6)+','+(top-48)+' '+(x0+w*.5)+','+(top-77)+' '+(x0+w*.4)+','+(top-48)+'" fill="#b4a98e" stroke="#3b4546" stroke-width="2"/>'+
-    '<path d="M'+(x0+w*.5)+' '+(top-81)+'v-12m-5 6h10" stroke="#ddd7be" stroke-width="2"/>';
- }
- if(kind==="municipal")feature='<polygon points="'+x0+','+(top-4)+' '+(x0+w)+','+(top-4)+' '+(x0+w-9)+','+(top-15)+' '+(x0+9)+','+(top-15)+'" fill="'+cement+'"/>';
- return '<g class="v-building">'+side+face+topShape+windows+feature+'</g>';
-}
-/**
- * Procedural overhead city map. Roads, land parcels, roofs, factories, squares
- * and satellite villages are viewed from above, never as a perspective skyline.
- * The stylized blocks are not claims of historic cadastral footprints.
- */
-export function cityPortrait(region,name){
- const rng=randomFor(region+"|"+name);
- const kind=CITY_MODE[region]||"rural";
- const industrial=kind==="industrial";
- const urban=["capital","urban","industrial","historic","port"].includes(kind);
- const roofColors=["#8c6655","#b78b65","#826b61","#9b7c69","#6f7775","#a59b89"];
- const p=(a,cl,fill,extra="")=>'<polygon class="'+cl+'" points="'+a.map(t=>t.join(",")).join(" ")+'" fill="'+fill+'" '+extra+'/>';
- const block=(xx,yy,w,h,fill,cls="v-building")=>p([[xx,yy],[xx+w,yy],[xx+w,yy+h],[xx,yy+h]],cls,fill,'stroke="#374b45" stroke-width="1.5"');
- const bldg=(bx,by,bw,bh,type,shade)=>{
-  let parts='<g class="v-building v-roof-'+type+'">'+block(bx,by,bw,bh,shade);
-  // Rectangular top-down roof ridges; no front or side facade is drawn.
-  if(type==="house"){
-   parts+=p([[bx,by],[bx+bw/2,by+bh/2],[bx,by+bh]],"v-roof-plane","#795c55",'opacity=".45"');
-   parts+=p([[bx+bw,by],[bx+bw/2,by+bh/2],[bx+bw,by+bh]],"v-roof-plane","#f0cfa6",'opacity=".28"');
-   parts+='<path d="M'+bx+' '+(by+bh/2)+'h'+bw+'" stroke="#ede0cb" stroke-opacity=".6" stroke-width="1"/>';
-  } else if(type==="factory"){
-   for(let k=5;k<bw-5;k+=11)
-    parts+='<path d="M'+(bx+k)+' '+(by+2)+'v'+(bh-4)+'" stroke="#dad5c2" stroke-width="4" opacity=".48"/>';
-   parts+=block(bx+bw*.7,by+bh*.24,Math.min(11,bw*.18),Math.min(11,bh*.32),"#4a5452","v-chimney");
-  } else if(type==="church"){
-   parts+=block(bx+bw*.34,by-9,bw*.32,bh+18,"#c4b99d","v-basilica");
-   parts+='<path d="M'+(bx+bw/2)+' '+(by-8)+'v'+(bh+16)+'M'+(bx+2)+' '+(by+bh/2)+'h'+(bw-4)+'" stroke="#eee3c9" stroke-width="2"/>';
-  } else if(type==="civic"){
-   parts+='<path d="M'+(bx+7)+' '+(by+7)+'h'+(bw-14)+'v'+(bh-14)+'h-'+(bw-14)+'Z" fill="none" stroke="#e1d3b6" stroke-width="3"/>';
-  }
-  return parts+'</g>';
- };
- let art='<svg class="v-city-scene v-city-overhead" viewBox="0 0 900 560" role="img" aria-label="'+esc(name)+' kentinin kuşbakışı temsili sokak, ada, bina ve köy planı">'+
- '<rect x="0" y="0" width="900" height="560" fill="#93a68c"/>';
- // Agricultural landscape and fields outside the densest street blocks.
- for(let col=0;col<14;col++){
-  const xx=(col*83+30)%950,yy=(col*129+70)%560;
-  const hh=40+rng()*38,ww=57+rng()*36;
-  art+=p([[xx,yy],[xx+ww,yy-7],[xx+ww+6,yy+hh],[xx+3,yy+hh+7]],"v-field",
-   ["#a6b687","#84996f","#9cac78","#b2ae81"][col%4],'stroke="#7b8d69" stroke-width="1"');
- }
- // A river is an overhead flowing strip, not a skyline horizon.
- if(["capital","port","rural","historic"].includes(kind)){
-  art+=p([[0,28],[90,43],[192,16],[314,26],[425,0],[470,0],[328,59],[204,51],[94,81],[0,70]],"v-water","#6b9aa3");
-  art+='<path d="M0 48L90 63 200 33 316 41 430 8" fill="none" stroke="#a9ced0" stroke-width="2" opacity=".55"/>';
- }
- // Slightly rotated urban fabric keeps map readable and avoids fabricated cadastral exactness.
- art+='<g transform="rotate(-7 450 280)">';
- art+=block(84,55,745,460,"#a0aa8b","v-city-ground");
- for(const xx of [95,227,359,491,623,755,847]){
-  art+=block(xx-12,34,24,506,"#777d78","v-road");
-  art+=block(xx-1,34,2,506,"#aaae9c","v-road-line");
- }
- for(const yy of [65,167,269,371,473,526]){
-  art+=block(72,yy-13,802,26,"#737e7b","v-road");
-  art+=block(72,yy-1,802,2,"#aeb7a7","v-road-line");
- }
- // Build blocks: each roof has a polygon footprint, internal courtyards, green lots.
- for(let row=0;row<4;row++)for(let col=0;col<5;col++){
-  const xx=110+col*132,yy=82+row*102;
-  const edge=111;
-  art+=block(xx-4,yy-4,edge+8,82,"#b7ba9f","v-lot");
-  if((col===2&&row===1)||(col===3&&row===2&&kind==="historic")){
-   art+=block(xx+11,yy+9,edge-20,65,"#c5baa0","v-plaza");
-   art+=block(xx+37,yy+21,30,30,"#899e88","v-garden");
-   art+='<text x="'+(xx+53)+'" y="'+(yy+61)+'" class="v-map-tiny" text-anchor="middle">MEYDAN</text>';
-   continue;
-  }
-  const garden=(row+col)%6===3||(kind==="rural"&&(row+col)%4===1);
-  if(garden){
-   art+=block(xx+11,yy+7,90,59,"#8caa85","v-garden");
-   art+=block(xx+14,yy+10,84,53,"#a2b592","v-garden");
-   for(let t=0;t<6;t++){
-    const cx=xx+22+(t%3)*25,cy=yy+23+Math.floor(t/3)*22;
-    art+=p([[cx,cy-7],[cx+6,cy],[cx,cy+7],[cx-6,cy]],"v-tree",t%2?"#557d65":"#668b70");
-   }
-   continue;
-  }
-  const buildingCount=industrial?3:urban?4:3;
-  for(let k=0;k<buildingCount;k++){
-   const px=xx+4+(k%2)*53+Math.round(rng()*3),py=yy+5+Math.floor(k/2)*35;
-   const wide=(industrial&&col%3===0&&k===0);
-   const bw=wide?92:38+Math.round(rng()*7),bh=wide?58:23+Math.round(rng()*7);
-   if(wide&&k>0)continue;
-   const isFactory=industrial&&(col+row)%3===0&&k===0;
-   const isChurch=!industrial&&(col===1&&row===1&&k===0||col===4&&row===0&&k===0);
-   const isCivic=!isFactory&&!isChurch&&(row===0&&col===2&&k===0);
-   const type=isFactory?"factory":isChurch?"church":isCivic?"civic":"house";
-   art+=bldg(px,py,bw,bh,type,roofColors[(row*6+col+k)%roofColors.length]);
-  }
- }
- if(kind==="port"){
-  art+=block(72,67,156,20,"#4a7d87","v-water");
-  art+='<path d="M120 88v66M158 88v65" stroke="#395f6b" stroke-width="6"/>';
- }
- art+='</g>';
- // Railway is a schematic top-down diagonal with sleepers, only for appropriate cities.
- if(industrial||kind==="capital"||kind==="urban"){
-  art+='<path d="M0 514L900 436" fill="none" stroke="#494f52" stroke-width="13"/>'+
-    '<path d="M0 510L900 432M0 518L900 440" fill="none" stroke="#b9b2a0" stroke-width="2"/>';
-  for(let k=0;k<36;k++){
-   const xx=k*27,yy=514-xx*78/900;
-   art+='<path d="M'+xx+' '+(yy-10)+'v20" stroke="#c1a989" stroke-width="2"/>';
-  }
- }
- // Each rural satellite settlement gets one explicit roof footprint.
- art+='<g class="v-rural">';
- for(const [v,[vx,vy]] of [[46,447],[820,85],[740,517]].entries()){
-  const n=v+1;
-  art+=p([[vx-16,vy-12],[vx+30,vy-18],[vx+38,vy+16],[vx-10,vy+22]],"v-village-plot","#b7bc90",'stroke="#657d65" stroke-width="2"');
-  art+=bldg(vx-3,vy-6,24,17,"house","#a56e55");
-  art+='<text x="'+(vx+10)+'" y="'+(vy+35)+'" text-anchor="middle" class="v-village-label">KÖY '+n+'</text>';
- }
- art+='</g>';
- art+='<g class="v-city-map-label"><rect x="12" y="10" width="485" height="28" rx="4" fill="#1e353a" opacity=".9"/>'+
- '<text x="24" y="29" class="v-city-illustration-label">KUŞBAKIŞI ŞEHİR PLANI · TEMSİLÎ ADA VE BİNALAR</text></g>'+
- '<g transform="translate(856 44)"><path d="M0 27V-14L-9 1 0-26 9 1 0-14" fill="none" stroke="#263c3d" stroke-width="3"/>'+
- '<text y="-30" text-anchor="middle" fill="#223738" font-size="13" font-weight="bold">K</text></g>'+
- '</svg>';
- return art;
 }
 /**
  * Genuine 1930s plan when licensed/downloadable; correctly labelled military
