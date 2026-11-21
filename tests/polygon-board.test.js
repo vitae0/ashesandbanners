@@ -2,12 +2,13 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {createGame,REGION_DATA} from "../src/engine.js";
 import {cityBuildings} from "../src/period-board.js";
-import {POLAND_1939,SECTORS,CAPITALS,countrySvg,cityPortrait,PolygonBoard} from "../src/polygon-board.js";
+import {POLAND_1939,SECTORS,CAPITALS,countrySvg,historicalCitySvg,PolygonBoard} from "../src/polygon-board.js";
 import {HISTORICAL_COUNTRIES} from "../src/historical-geometry.js";
+import {CITY_PLANS,HISTORICAL_CITY_REFERENCES,VERIFIED_SHEET_REGIONS,cityMapRecord,cityMapUrl} from "../src/historical-city-plans.js";
 
 const state=()=>createGame({seed:1940});
 
-test("all 16 prewar voivodeships have clickable map centres and city names",()=>{
+test("16 prewar voivodeships still have click targets and named city centres",()=>{
  const svg=countrySvg(state(),"warszawskie");
  assert.equal(Object.keys(CAPITALS).length,REGION_DATA.length);
  for(const [id] of REGION_DATA){
@@ -18,33 +19,59 @@ test("all 16 prewar voivodeships have clickable map centres and city names",()=>
  assert.equal((svg.match(/class="v-marker/g)||[]).length,16);
 });
 
-test("hand-built 1939 national outline and 1940 sectors are explicit and labelled as approximations",()=>{
- assert.ok(POLAND_1939.length>40);
- assert.equal(SECTORS.length,3);
- assert.deepEqual(SECTORS.map(x=>x.id),["reich","general","soviet"]);
+test("published country atlas uses historic source polygons and labels estimated 1940 divisions",()=>{
+ const pl=HISTORICAL_COUNTRIES.find(c=>/poland|polish/i.test(c.name));
+ assert.ok(pl);
+ assert.ok(pl.rings[0].length>=100);
+ assert.ok(HISTORICAL_COUNTRIES.length>=10);
+ assert.ok(POLAND_1939.length>=40);
+ assert.deepEqual(SECTORS.map(z=>z.id),["reich","general","soviet"]);
  const svg=countrySvg(state(),"warszawskie");
+ assert.match(svg,/Cliopatria 1938/);
  assert.match(svg,/GENERALGOUVERNEMENT/);
- assert.match(svg,/POLSKA 1939/);
  assert.match(svg,/Ocak 1940/);
  assert.match(svg,/clipPath id="v-poland-clip"/);
- assert.match(svg,/CC BY 4\.0|Temsilî sınır/);
+ assert.doesNotMatch(svg,/<(?:img|image|foreignObject)\b/i);
 });
 
-test("political atlas and 16 polygon city scenes are image-free",()=>{
- const svg=countrySvg(state(),"warszawskie");
- assert.doesNotMatch(svg,/<(?:img|image|foreignObject)\b/i);
- assert.doesNotMatch(svg,/https?:\/\//);
- for(const [id,[name]] of Object.entries(CAPITALS)){
-  const art=cityPortrait(id,name);
-  assert.match(art,/<svg[\s\S]*<\/svg>/);
-  assert.match(art,/v-building/);
-  assert.match(art,/v-rural/);
-  assert.doesNotMatch(art,/<(?:img|image|foreignObject)\b/i,id);
-  assert.equal(art,cityPortrait(id,name),"deterministic polygon city: "+id);
+test("Warsaw, Łódź, Katowice, Lwów and Toruń use named original street-plan documents",()=>{
+ assert.deepEqual(Object.keys(CITY_PLANS).sort(),["warszawskie","lodzkie","slaskie","lwowskie","pomorskie"].sort());
+ const years={warszawskie:1935,lodzkie:1938,slaskie:1939,lwowskie:1938,pomorskie:1921};
+ for(const [id,year] of Object.entries(years)){
+  const record=cityMapRecord(id);
+  assert.equal(record.kind,"city");
+  assert.equal(record.year,year);
+  assert.ok(record.source.startsWith("https://commons.wikimedia.org/wiki/File:"),id);
+  assert.ok(record.local.startsWith("assets/maps/"),id);
+  assert.match(historicalCitySvg(id,CAPITALS[id][0]),/class="v-city-archive"/);
  }
 });
 
-test("all provinces open illustrated city windows without inventing verified building records",()=>{
+test("unsupported city layouts never generate imaginary roads, houses or villages",()=>{
+ for(const [id,[name]] of Object.entries(CAPITALS)){
+  const record=cityMapRecord(id);
+  const map=historicalCitySvg(id,name);
+  assert.match(map,/<svg[\s\S]*<\/svg>/);
+  assert.match(map,/v-city-historical/);
+  assert.doesNotMatch(map,/v-road|v-building|v-roof-plane|v-field|v-village-label/);
+  if(record.kind==="unavailable"){
+   assert.equal(cityMapUrl(id),null);
+   assert.doesNotMatch(map,/<image\b/);
+   assert.match(map,/DOĞRULANMIŞ ŞEHİR HARİTASI BULUNMADI/);
+  }
+  if(record.kind==="regional"){
+   assert.ok(VERIFIED_SHEET_REGIONS.includes(id));
+   assert.match(record.notes,/1:300.000/);
+   assert.match(map,/WIG BÖLGE HARİTASI/);
+  }
+ }
+ assert.equal(cityMapRecord("poleskie").kind,"unavailable");
+ assert.equal(cityMapRecord("tarnopolskie").kind,"unavailable");
+ assert.match(HISTORICAL_CITY_REFERENCES.krakowskie.source,/dawnemapykrakowa/);
+ assert.match(HISTORICAL_CITY_REFERENCES.wilenskie.source,/pbc.biaman/);
+});
+
+test("16 cities all open source-labelled periods or honest missing-plan view",()=>{
  const s=state(),host={innerHTML:"",addEventListener(){}};
  const events=[],board=new PolygonBoard(host,(_,e)=>events.push(e.type));
  board.mount(s);
@@ -52,10 +79,12 @@ test("all provinces open illustrated city windows without inventing verified bui
   board.focusRegion(id);
   assert.equal(board.view,"town");
   assert.equal(s.selectedRegion,id);
-  assert.ok(host.innerHTML.includes("v-city-window"),id);
-  assert.ok(host.innerHTML.includes("v-city-scene"),id);
-  if(!["warszawskie","lodzkie"].includes(id))
-    assert.match(host.innerHTML,/temsili görselleştirmedir/i);
+  assert.match(host.innerHTML,/v-city-window/);
+  assert.match(host.innerHTML,/v-city-historical/);
+  assert.match(host.innerHTML,/TARİHSEL KAYNAK/);
+  assert.doesNotMatch(host.innerHTML,/KUŞBAKIŞI ŞEHİR PLANI · TEMSİLÎ/);
+  if(cityMapRecord(id).kind==="unavailable")
+    assert.match(host.innerHTML,/ŞEHİR HARİTASI BULUNAMADI/);
   board.home();
   assert.equal(board.view,"country");
  }
@@ -65,23 +94,12 @@ test("all provinces open illustrated city windows without inventing verified bui
  assert.equal(cityBuildings("poleskie","Brześć").length,0);
 });
 
-test("published map uses actual attributed source polygons for Poland and neighboring countries",()=>{
- const pl=HISTORICAL_COUNTRIES.find(c=>/poland|polish/i.test(c.name));
- assert.ok(pl,"Poland must be available as local vector dataset");
- assert.ok(pl.rings[0].length>=100,"the supplied Polish border should exceed hand-drawn fidelity");
- assert.ok(HISTORICAL_COUNTRIES.length>=10);
- const svg=countrySvg(state(),"warszawskie");
- assert.match(svg,/Cliopatria 1938/);
- assert.ok(svg.includes("v-country"));
-});
-
-test("bounded map camera zooms and pans, never allowing unlimited zoom",()=>{
+test("historical maps preserve the geographic pan-zoom limit 4x",()=>{
  const s=state(),host={innerHTML:"",addEventListener(){}};
  const board=new PolygonBoard(host,()=>{});
  board.mount(s);
- const first=board.camera.w;
  board.zoomAt(2);
- assert.ok(board.camera.w<first);
+ assert.ok(board.camera.w<1350);
  board.panBy(100,100);
  assert.ok(board.camera.x>=0);
  for(let i=0;i<50;i++)board.zoomAt(2);
@@ -92,19 +110,7 @@ test("bounded map camera zooms and pans, never allowing unlimited zoom",()=>{
  assert.equal(board.camera.x,0);
 });
 
-test("city portraits are orthographic roof plans, never horizon skylines",()=>{
- for(const [id,[name]] of Object.entries(CAPITALS)){
-  const art=cityPortrait(id,name);
-  assert.match(art,/v-city-overhead/);
-  assert.match(art,/v-road/);
-  assert.match(art,/v-roof-/);
-  assert.match(art,/KUŞBAKIŞI ŞEHİR PLANI/);
-  assert.doesNotMatch(art,/v-sky|v-building-hit|skyline|horizon/i);
- }
-});
-
-
-test("orthographic city map camera supports a bounded 2.5x zoom and pan",()=>{
+test("historical city scan camera supports zoom 2.5x and reset",()=>{
  const s=state(),host={innerHTML:"",addEventListener(){}};
  const board=new PolygonBoard(host,()=>{});
  board.mount(s);
