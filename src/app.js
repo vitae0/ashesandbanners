@@ -7,13 +7,13 @@ import {
 } from "./engine.js";
 import {ORGANIZATIONS,CONTACTS,currentOrganizations,contactFaction,politicalIdentity,earlyALStatus} from "./politics.js";
 import {PeriodBoard} from "./period-board.js";
-import {HISTORIC_LOCATIONS} from "./period-map-data.js";
+import {PLAYABLE_REGIONS,PLAYABLE_CITIES} from "./verified-sites.js";
 
 const $=id=>document.getElementById(id);
 const esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const fmt=n=>Math.round(Number(n)||0).toLocaleString("tr-TR");
 const date=d=>new Intl.DateTimeFormat("tr-TR",{day:"numeric",month:"short",year:"numeric",timeZone:"UTC"}).format(new Date(d+"T00:00:00Z"));
-const cities=[["Varşova",52.2297,21.0122,"warszawskie"],["Łódź",51.7592,19.455,"lodzkie"],["Kraków",50.0647,19.945,"krakowskie"],["Lublin",51.2465,22.5684,"lubelskie"],["Kielce",50.8661,20.6286,"kieleckie"],["Poznań",52.4064,16.9252,"poznanskie"],["Wilno",54.69,25.28,"wilenskie"]];
+const cities=[["Varşova",52.2297,21.0122,"warszawskie"],["Łódź",51.7592,19.455,"lodzkie"]];
 let s=null,tab="overview",running=false,map=null;
 const KEY="ashes-and-banners-save-v1";
 const panel=(h,body)=>'<article class="panel"><h3>'+h+'</h3>'+body+'</article>';
@@ -59,7 +59,7 @@ function render(){
 function overview(){
  const r=selected(),cs=activeCells(s).filter(c=>c.region===r.id),ef=assetEffects(s,r.id);
  const building=s.selectedBuilding;
- let bcontent='<p class="readout">İl, yerleşim ve temsilî yapı seçin. Konutlar hücre evi; okul, kilise ve hastane gibi kurumlar yerel bağlantı olabilir.</p>';
+ let bcontent='<p class="readout">Yalnızca savaş öncesi varlığı belgelenen binalar seçilebilir. Belgesiz köyler, meydanlar ve diğer şehirlerin bina kayıtları kaldırıldı.</p>';
  if(building){
   const claimed=s.assets.some(a=>a.osmId===building.osmId);
   bcontent='<div class="panel tight"><b>'+esc(building.name)+'</b><p class="smalltext">Tarihsel yer noktası • '+esc(building.osmId)+' • Görünürlük: '+fmt(building.visibility*100)+'%</p>'
@@ -68,13 +68,13 @@ function overview(){
  return heading("ÖRGÜT RAPORU","Yeraltı Genel Merkezi","Örgüt devlet değil. Sivil destek, hücreler, gizlilik ve bağlantılarla güçlenirsiniz.")
  +'<div class="grid2">'+metric("Toplam üye",members(s),activeCells(s).length+" hücre")+metric("Ortalama etki",influence(s)+"%","Bölgesel")+metric("Başarılı operasyon",s.records.successful,"Başarısız: "+s.records.failed)+metric("Tutuklanan",s.records.arrests,"Toplam")+'</div>'
  +panel("Seçili bölge · "+esc(r.name),'<div class="grid2"><div><small>Halk desteği '+fmt(r.support)+'%</small>'+bar(r.support)+'</div><div><small>Örgüt etkisi '+fmt(r.influence)+'%</small>'+bar(r.influence)+'</div><div><small>İşgal baskısı '+fmt(r.heat)+'%</small>'+bar(r.heat)+'</div><div><small>Aktif hücre sayısı</small><b> '+cs.length+'</b></div></div><p class="smalltext">'+(s.selectedDistrict?"Seçili ilçe: "+esc(s.selectedDistrict)+". ":"")+'Kurumların haftalık destek katkısı: '+ef.support.toFixed(2)+' (azalan getirili).</p><div class="buttonline">'+btn("Bölgeye odaklan","region")+btn("Hücre kur • 65 para","new-cell")+btn("Operasyonlar →","operations-tab")+'</div>')
- +panel("Harita ve kurum bağlantıları",'<p class="smalltext">1939 Polonya coğrafyası temel alınmış statik dönem haritası. İl sınırları yaklaşık; yerleşimler ve bina parselleri oyun amaçlı şematik gösterilir.</p><div class="grid2">'+metric("Bağlı yapı",s.assets.filter(a=>a.region===r.id).length)+metric("Sığınma gizliliği",ef.secrecy.toFixed(1))+'</div><div class="buttonline">'+cities.slice(0,4).map(c=>'<button data-action="city" data-name="'+esc(c[0])+'">'+esc(c[0])+'</button>').join("")+btn("Mahalle krokisi","buildings")+'</div>'+bcontent)
+ +panel("Harita ve kurum bağlantıları",'<p class="smalltext">Gerçek 1939 ülke haritası ve dönemin şehir planları kullanılır. Yalnızca Varşova ve Łódź’da kaynaklı bina kayıtları açıktır; doğrulanmamış poligon çizilmez.</p><div class="grid2">'+metric("Bağlı yapı",s.assets.filter(a=>a.region===r.id).length)+metric("Sığınma gizliliği",ef.secrecy.toFixed(1))+'</div><div class="buttonline">'+cities.slice(0,4).map(c=>'<button data-action="city" data-name="'+esc(c[0])+'">'+esc(c[0])+'</button>').join("")+btn("Mahalle krokisi","buildings")+'</div>'+bcontent)
  +panel("Son gelişmeler",s.log.slice(0,7).map(l=>'<div class="listitem smalltext"><small>'+date(l.date)+'</small><div>'+esc(l.message)+'</div></div>').join(""));
 }
 function network(){
  const founding=s.milestones.includes("founding");
  const command=panel("Merkezileşme • "+esc(CENT_LEVELS[s.centralization-1].name),'<div class="buttonline">'+CENT_LEVELS.map((l,i)=>'<button data-action="central" data-level="'+(i+1)+'" '+(s.centralization===i+1?'class="primary"':'')+'>'+(i+1)+'</button>').join("")+'</div><p class="smalltext">'+esc(CENT_LEVELS[s.centralization-1].desc)+'</p><p class="muted smalltext">Koordinasyon: '+CENT_LEVELS[s.centralization-1].coord+' • Zincirleme risk ×'+CENT_LEVELS[s.centralization-1].exposure+'</p><label class="selectrow smalltext"><input type="checkbox" data-setting="autoOrders" style="width:18px" '+(s.settings.autoOrders?"checked":"")+'> Komutanlar sürekli emir uygulasın</label>');
- const recruits=panel("Yeni hücre oluştur",'<div class="selectrow"><select id="recruit-region">'+REGION_DATA.map(([id,name])=>'<option value="'+id+'" '+(id===s.selectedRegion?"selected":"")+'>'+esc(name)+'</option>').join("")+'</select>'+btn("Kur • 65 para","recruit")+'</div>');
+ const recruits=panel("Yeni hücre oluştur",'<div class="selectrow"><select id="recruit-region">'+REGION_DATA.filter(([id])=>PLAYABLE_REGIONS.includes(id)).map(([id,name])=>'<option value="'+id+'" '+(id===s.selectedRegion?"selected":"")+'>'+esc(name)+'</option>').join("")+'</select>'+btn("Kur • 65 para","recruit")+'</div>');
  const list=activeCells(s).map(c=>{
   const busy=c.busyUntil> s.ticks;
   return '<div class="panel tight"><div class="row"><h3>'+esc(c.name)+'</h3><span class="badge '+(!busy?"good":"")+'">'+(busy?(c.busyUntil-s.ticks)+" gün kaldı":"Müsait")+'</span></div><div class="smalltext muted">'+esc(regionOf(s,c.region).name)+' • '+c.members+' kişi • Teşhir '+fmt(c.exposure)+'% • Yorgunluk '+fmt(c.fatigue)+'%</div>'
@@ -130,7 +130,7 @@ function settings(){
  return heading("SİSTEM","Oyun Ayarları","Oynanış, zorluk, otomasyon ve görsel tercihler oyun sırasında değiştirilebilir.")
  +'<div class="panel stack">'+select("difficulty",Object.entries(DIFFICULTIES).map(([id,v])=>[id,v.name]))+select("events",[["calm","Seyrek"],["normal","Dengeli"],["intense","Yoğun"]])+select("history",[["historical","Tarihsel"],["alternate","Alternatif"]])+select("theme",Object.entries(THEMES).map(([id,v])=>[id,v.name]))+'<label>Kaos / alternatif sapma <input type="range" min="0" max="100" data-setting="chaos" value="'+g.chaos+'"></label><label class="selectrow"><input type="checkbox" data-setting="autoOrders" style="width:18px" '+(g.autoOrders?"checked":"")+'> Otomatik komutan emirleri</label><label class="selectrow"><input type="checkbox" data-setting="showInfluence" style="width:18px" '+(g.showInfluence?"checked":"")+'> Etki haritası</label></div>'
  +panel("Kayıt",'<div class="buttonline">'+btn("Kaydet","save")+btn("JSON dışa aktar","export")+btn("JSON içe aktar","import")+btn("Yeni kampanya","new-game")+'</div><p class="smalltext muted">RNG tohumu: '+s.seed+' • Kayıt şeması: '+s.version+'</p>')
- +'<p class="readout">Harita 1939 Polonya’sının dönem temalı şematik gösterimidir. Bölgeler yaklaşık, yerleşim kartları ve bina yerleri temsilîdir; dış harita servisi kullanılmaz.</p>';
+ +'<p class="readout">Gerçek arşiv haritaları kullanılır. Bina listeleri kaynaklıdır; koordinatlar yaklaşık, 1940 parsel poligonları henüz doğrulanmadı. Diğer şehirler oynanabilir değildir.</p>';
 }
 function ending(){
  const v=summary(s);
@@ -171,7 +171,7 @@ function perform(b){
  if(ac==="claim"){result=acquireAsset(s,s.selectedBuilding,$("asset-kind").value);if(result.ok)s.selectedBuilding=null;}
  if(ac==="region"&&map)map.focusRegion(s.selectedRegion)
  if(ac==="city"&&map){const c=cities.find(x=>x[0]===b.dataset.name);if(c)map.focusTown(c[0],c[3])}
- if(ac==="buildings"&&map)map.focusTown((HISTORIC_LOCATIONS[s.selectedRegion]||["Merkez"])[0],s.selectedRegion)
+ if(ac==="buildings"&&map)map.focusTown(PLAYABLE_CITIES.find(x=>x==="Łódź"&&s.selectedRegion==="lodzkie")||"Warszawa",s.selectedRegion)
  if(ac==="operations-tab")switchTab("operations");
  if(ac==="save"){save();notify("Kaydedildi.")}
  if(ac==="export")exportSave();
