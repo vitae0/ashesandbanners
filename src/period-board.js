@@ -17,7 +17,7 @@ export function cityBuildings(region,city){
  return validatedSiteList(key).filter(site=>site.verifiedPrewar&&getVerifiedSite(site.id)).map((site,i)=>({
   osmId:site.id,name:site.name,lat:site.lat,lon:site.lon,region:site.region,
   city:key,kind:site.type,allowed:[site.type],
-  visibility:site.kind==="rural"?.21:(INSTITUTIONS[site.type]?.visibility||.35),
+  visibility:getVerifiedSite(site.id)?.visibilityOverride??(INSTITUTIONS[site.type]?.visibility||.35),
   source:site.source,sourceAddress:site.address,verifiedPrewar:true,polygonVerified:false,zone:"urban",index:i
  }));
 }
