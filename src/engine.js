@@ -1,5 +1,5 @@
 
-import {PLAYABLE_REGIONS,getVerifiedSite} from "./verified-sites.js";
+import {PLAYABLE_REGIONS,getVerifiedSite,buildingStatusAt} from "./verified-sites.js";
 export const REGION_DATA = [
  ["pomorskie","Pomorskie",53.16,18.60,15,.83,1.9],
  ["poznanskie","Poznańskie",52.41,16.93,18,.83,2.3],
@@ -63,7 +63,11 @@ export const INSTITUTIONS = {
  hospital:{name:"Sivil sağlık ağı",price:74,visibility:.48,help:"Sivil güven, moral ve tutuklama sonrasındaki toparlanma."},
  factory:{name:"İşçi bağlantısı",price:69,visibility:.62,help:"Kaynaklar ve emekçi desteği."},
  railway:{name:"Ulaştırma bağlantısı",price:72,visibility:.8,help:"Ulaşım istihbaratı, daha yüksek baskın riski."},
- press:{name:"Basın ağı",price:55,visibility:.65,help:"Yeraltı basını ve siyasi meşruiyet."}
+ press:{name:"Basın ağı",price:55,visibility:.65,help:"Yeraltı basını ve siyasi meşruiyet."},
+ cultural:{name:"Kültürel dayanışma",price:60,visibility:.72,help:"Tiyatro, müze ve bilim kurumları çevresinde sivil ağ. Varsayımsal oynanış etkisi."},
+ synagogue:{name:"Yahudi toplumu dayanışması",price:65,visibility:.65,help:"Yahudi dinî ve toplumsal çevreleriyle dayanışma; diğer dini kurumlarla aynı aidiyet varsayılmaz."},
+ hotel:{name:"Konaklama bağlantısı",price:68,visibility:.86,help:"Otel çevresi üzerinden temsili haberleşme ve lojistik; dikkat çekici bir yapı."},
+ historic:{name:"Tarihî yapı (koruma altında)",price:0,visibility:1,help:"Tarihî haritada görülebilir; askerî/siyasi kullanıma açık bir hücre evi değildir."}
 };
 export const CENT_LEVELS = [
  {name:"Tam özerk",coord:-10,exposure:.68,delegate:1.4,desc:"Az ortak koordinasyon, düşük zincirleme açığa çıkma, komutanların geniş serbestliği."},
@@ -186,6 +190,8 @@ export function acquireAsset(s,building,type){
  if(!site||site.region!==building.region||type!==site.type)return {ok:false,why:"Bu bina tarihsel kaynakla doğrulanmadı veya yanlış tür seçildi."};
  const def=INSTITUTIONS[type],r=regionOf(s,site.region);
  if(!def||!building||!r||s.status!=="running")return {ok:false,why:"Bina ve bölge seçilmedi."};
+ const access=buildingStatusAt(site,s.date);
+ if(!access.claimable)return {ok:false,why:access.reason};
  if(s.funds<def.price)return {ok:false,why:"Yeterli kaynak yok."};
  if(s.assets.some(a=>a.osmId===building.osmId))return {ok:false,why:"Bu bina zaten örgüt ağında."};
  const lat=Number(site.lat),lon=Number(site.lon);
@@ -196,16 +202,16 @@ export function acquireAsset(s,building,type){
 }
 export function assetEffects(s,regionId){
  const r=regionOf(s,regionId);
- const list=s.assets.filter(a=>a.region===r.id);
+ const list=s.assets.filter(a=>a.region===r.id&&buildingStatusAt(getVerifiedSite(a.osmId),s.date).claimable);
  const counts={};
  for(const a of list)counts[a.type]=(counts[a.type]||0)+1;
  const fall=(key,cap,scale=4)=>cap*(1-Math.exp(-(counts[key]||0)/scale));
  return {
-  support:fall("church",1.6*r.religion,5)+fall("school",.7,4)+fall("hospital",.8,4)+fall("press",.6,4),
-  recruitment:fall("school",1.2,4)+fall("factory",1.1,5)+fall("safehouse",.8,7),
+  support:fall("church",1.6*r.religion,5)+fall("synagogue",.65,4)+fall("cultural",.55,5)+fall("school",.7,4)+fall("hospital",.8,4)+fall("press",.6,4),
+  recruitment:fall("school",1.2,4)+fall("factory",1.1,5)+fall("cultural",.7,5)+fall("safehouse",.8,7),
   supplies:fall("factory",2.7,5)+fall("railway",1.2,5),
-  secrecy:fall("safehouse",7,6)+fall("hospital",1.4,4),
-  intel:fall("railway",2,5)+fall("press",.5,5)
+  secrecy:fall("safehouse",7,6)+fall("hotel",1,5)+fall("hospital",1.4,4),
+  intel:fall("railway",2,5)+fall("cultural",.5,5)+fall("hotel",.8,4)+fall("press",.5,5)
  };
 }
 export function institutionRaidRisk(s,a){
@@ -323,9 +329,23 @@ function warWeek(s){
   s.war.phase="Doğu cephesinde Alman üstünlüğü";
  }
 }
+/**
+ * Date-triggered historic access changes. Removing an inaccessible institution
+ * does not invent a raid or a political event. Other buildings are untouched.
+ */
+export function syncHistoricalAssets(s){
+ const active=[];
+ for(const asset of s.assets){
+  const site=getVerifiedSite(asset.osmId),access=buildingStatusAt(site,s.date);
+  if(!site||!access.claimable){
+   entry(s,(site?.name||asset.name||"Bilinmeyen yapı")+": kurumsal bağlantı sonlandırıldı. "+access.reason,"story");
+  }else active.push(asset);
+ }
+ s.assets=active;
+}
 function week(s){
  const active=activeCells(s),diff=DIFFICULTIES[s.settings.difficulty];
- const factories=s.assets.filter(a=>a.type==="factory").length;
+ const factories=s.assets.filter(a=>a.type==="factory"&&buildingStatusAt(getVerifiedSite(a.osmId),s.date).claimable).length;
  // Diminishing returns prevent unlimited resource production by adding buildings.
  const factoryIncome=Math.floor(14*(1-Math.exp(-factories/6)));
  const factorySupply=Math.floor(8*(1-Math.exp(-factories/6)));
@@ -406,6 +426,7 @@ export function advanceDays(s,count=1){
  for(let i=0;i<Math.max(1,Math.min(365,Math.floor(count)));i++){
   if(s.pendingEvent||s.status!=="running")break;
   addDay(s);s.ticks++;s.records.days++;
+  syncHistoricalAssets(s);
   if(!s.war.started&&after(s,"1941-06-22")){s.war.started=true;s.war.phase="Barbarossa";s.war.germanAdvance=4;entry(s,"22 Haziran 1941: Almanya SSCB'ye saldırdı.","story")}
   for(const o of s.operations){if(!o.result&&o.completeAt<=s.ticks)resolveOperation(s,o)}
   if(s.ticks%7===0)week(s);
@@ -465,7 +486,7 @@ export function migrateSave(old){
  v.cells=v.cells.filter(c=>PLAYABLE_REGIONS.includes(c.region));
  v.assets=(v.assets||[]).filter(a=>{
   const verified=getVerifiedSite(a.osmId);
-  return !!(verified&&verified.region===a.region&&verified.type===a.type);
+  return !!(verified&&verified.region===a.region&&verified.type===a.type&&buildingStatusAt(verified,v.date).claimable);
  });
  const cellIDs=new Set(v.cells.map(c=>c.id));
  v.operations=(v.operations||[]).filter(o=>cellIDs.has(o.cell));
