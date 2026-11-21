@@ -6,8 +6,8 @@ import {
  assetEffects,INSTITUTIONS,institutionRaidRisk,regroup,validateSave,setCentralization,assignCommander,migrateSave,REGION_DATA
 } from "../src/engine.js";
 import {currentOrganizations,contactFaction,politicalIdentity,earlyALStatus} from "../src/politics.js";
-import {MAP_POINTS,CELLS,HISTORIC_LOCATIONS} from "../src/period-map-data.js";
-import {cityBuildings} from "../src/period-board.js";
+import {MAP_POINTS,CELLS,HISTORIC_LOCATIONS,periodOccupation} from "../src/period-map-data.js";
+import {cityBuildings,PeriodBoard} from "../src/period-board.js";
 const setup=(x={})=>createGame({seed:123456,...x});
 test("1940 does not contain AK, PPR, PPR GL or AL",()=>{
  const s=setup();const ids=currentOrganizations(s).map(x=>x.id);
@@ -122,4 +122,27 @@ test("legacy 2017-style saves migrate to historical province identifiers",()=>{
  assert.equal(migrated.cells[0].region,"warszawskie");
  assert.equal(migrated.assets.length,0);
  assert.equal(validateSave(migrated),true);
+});
+
+test("occupied interwar East changes status in June 1941 without losing the 1939 provinces",()=>{
+ assert.equal(periodOccupation("1940-01-01","wilenskie"),"soviet");
+ assert.equal(periodOccupation("1942-01-01","wilenskie"),"german");
+ assert.equal(periodOccupation("1942-01-01","poznanskie"),"annexed");
+});
+test("static board renders without external map libraries or data requests",()=>{
+ const callbacks=[];
+ const host={innerHTML:"",addEventListener(){}};
+ const board=new PeriodBoard(host,(_s,e)=>callbacks.push(e.type));
+ const game=setup();board.mount(game);
+ assert.ok(host.innerHTML.includes("<svg"));
+ assert.ok(host.innerHTML.includes("WILNO"));
+ assert.ok(!host.innerHTML.includes("tile.openstreetmap"));
+ board.focusRegion("warszawskie");
+ assert.ok(host.innerHTML.includes("Warszawa"));
+ board.focusTown("Warszawa");
+ assert.equal(game.selectedDistrict,"Warszawa");
+ assert.equal((host.innerHTML.match(/data-building=/g)||[]).length,24);
+ board.back();assert.equal(board.view,"province");
+ board.home();assert.equal(board.view,"country");
+ assert.ok(callbacks.length>=3);
 });
