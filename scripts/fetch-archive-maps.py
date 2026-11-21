@@ -39,7 +39,7 @@ def download(target, original, width):
                 ctype=rsp.headers.get("Content-Type","")
             if len(data)<20_000 or len(data)>8_000_000:
                 raise RuntimeError("Unexpected downloaded file size: "+str(len(data)))
-            if not (data.startswith(b"\\xff\\xd8\\xff") or data.startswith(b"\\x89PNG\\r\\n\\x1a\\n")):
+            if not (data[:3]==bytes([255,216,255]) or data[:8]==bytes([137,80,78,71,13,10,26,10])):
                 raise RuntimeError("Downloaded content not JPG/PNG ("+ctype+")")
             target.write_bytes(data)
             return len(data)
