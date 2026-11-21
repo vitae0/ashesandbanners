@@ -115,7 +115,7 @@ test("archival city map features reference stable names and coordinates, not gen
  assert.equal(a.length,9);
  assert.equal(JSON.stringify(a),JSON.stringify(b));
  for(const site of a){assert.ok(site.osmId.startsWith("archival/"));assert.ok(site.visibility>=0&&site.visibility<=1)}
- assert.ok(a.some(site=>site.allowed.includes("safehouse")));
+ assert.ok(a.some(site=>site.allowed.includes("church")));
  assert.ok(a.some(site=>site.allowed.includes("cultural")));
 });
 test("legacy 2017-style saves migrate to historical province identifiers",()=>{
