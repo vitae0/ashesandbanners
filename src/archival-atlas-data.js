@@ -117,6 +117,11 @@ export const REGIONAL_SHEETS={
  tarnopolskie:["Lwów / Tarnopol çevresi",1928,"WIG Mapa Operacyjna Polski - 86 Lwów 1928.jpg"],
  stanislawowskie:["Stanisławów / Czerniowce",1930,"WIG Mapa Operacyjna Polski - 97 Stanisławów-Czerniowce (Cernauti) 1930.jpg"]
 };
+// Local copies from the Commons-sourced WIG bundling workflow. Shared Lwów sheet also covers Tarnopol context.
+for(const [region,row] of Object.entries(REGIONAL_SHEETS)){
+ const file=row[2];
+ if(!ARCHIVE_PATH[file])ARCHIVE_PATH[file]="assets/maps/wig-"+(region==="tarnopolskie"?"lwowskie":region)+".jpg";
+}
 export function regionalArchive(id){
  const row=REGIONAL_SHEETS[id];if(!row)return ARCHIVE.country;
  return {title:"WIG, arkusz "+row[0],year:row[1],file:row[2],source:"https://commons.wikimedia.org/wiki/File:"+encodeURIComponent(row[2]),rights:"Historical military cartographic sheet"};
