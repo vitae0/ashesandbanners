@@ -38,6 +38,12 @@ Players are **not controlling SZP, ZWZ, AK, GL or AL as sovereign states**. They
 - [Polish government: Peasant Battalions and their formation](https://www.gov.pl/web/uw-mazowiecki/84-rocznica-powolania-batalionow-chlopskich).
 - [Polish education resources: Government Delegation in December 1940](https://zpe.gov.pl/a/polskie-panstwo-podziemne-komunisci-w-czasie-okupacji/DqEzrlI4a).
 
-## Caveats
+## Map representation after the offline atlas change
 
-Modern geoBoundaries POL ADM1 and ADM2 polygons represent **2017**, not the administrative boundaries of 1940. They cover *present-day Poland*, rather than the territory of the Second Polish Republic, whose eastern districts were outside today's Polish borders and whose western shape was different. OSM building footprints are current records, not a wartime reconstruction. These limitations are explicitly visible in the prototype. A historically accurate map, rail network and occupation-zone overlay will require an entirely separate, georeferenced historical dataset.
+The game uses a **fixed illustrated strategic board** representing the borders and all 16 voivodeships of the Second Polish Republic, with eastern territories included. It does not load OpenStreetMap, Leaflet, geoBoundaries, Mapbox, Overpass or any other map service.
+
+The map is an **approximate original SVG drawing**, inspired by period maps, **not georeferenced historical boundary geometry**. Province lines are generalized. Clickable locality cards are not an official historical powiat boundary survey; the street blocks and houses are explicitly *fictional*. The player still manages seven underground cells, not a government.
+
+Historical reference: [1939 Central Statistical Office administrative map, hosted by Gesher Galicia](https://maps2.geshergalicia.org/galicia/poland-interwar-1939-1/) and [Institute of National Remembrance: occupied Poland, 1939–1941](https://ipn.gov.pl/download/2/49339/AguidetothehistoryofPoland.pdf).
+
+Existing saves created against the previous present-day administrative interface are converted to the 1939 region identifiers. The conversion is approximate and cannot reconstruct missing period locations.
