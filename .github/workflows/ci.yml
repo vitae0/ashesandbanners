@@ -17,8 +17,8 @@ jobs:
           node --check src/engine.js
           node --check src/politics.js
           node --check src/app.js
-          node --check src/period-map-data.js
           node --check src/period-board.js
+          node --check src/verified-sites.js
           node --check src/archival-atlas-data.js
           node --check tests/engine.test.js
       - name: Run simulation tests
