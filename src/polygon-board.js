@@ -96,7 +96,7 @@ export function countrySvg(state,selected,camera={x:0,y:0,w:1350,h:780}){
  // Prefer documented 1938 EPSG:4326 country polygons, bundled locally from Cliopatria.
  // Fallback is the old hand-drawn atlas only when the optional data build is absent.
  const poland=HISTORICAL_COUNTRIES.find(c=>/^poland$/i.test(c.name))||
-   HISTORICAL_COUNTRIES.find(c=>/poland/i.test(c.name));
+   HISTORICAL_COUNTRIES.find(c=>/poland|polish/i.test(c.name));
  const sourced=Boolean(poland?.rings?.length);
  const polandRings=sourced?poland.rings:[POLAND_1939];
  const countryColors=name=>/german|reich|prussia/i.test(name)?"#425565":
